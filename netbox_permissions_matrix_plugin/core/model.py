@@ -95,6 +95,20 @@ class Snapshot:
     principals: dict[PrincipalRef, Principal]
     # user ID -> IDs of the groups the user belongs to
     memberships: dict[int, frozenset[int]] = field(default_factory=dict)
+    _index: dict | None = field(default=None, init=False, repr=False, compare=False)
+
+    def covering_ids(self, ref: PrincipalRef, object_type: str, action: str) -> list[int]:
+        """IDs of the permissions covering a cell, from an index built on first use (snapshots are not mutated)."""
+        if self._index is None:
+            index: dict[tuple, list[int]] = {}
+            for pid in sorted(self.perms):
+                p = self.perms[pid]
+                for principal in p.principals():
+                    for ot in p.object_types:
+                        for a in p.actions:
+                            index.setdefault((principal, ot, a), []).append(pid)
+            self._index = index
+        return self._index.get((ref, object_type, action), [])
 
     def name_of(self, ref: PrincipalRef) -> str:
         principal = self.principals.get(ref)

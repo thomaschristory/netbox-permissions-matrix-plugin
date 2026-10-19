@@ -1,0 +1,104 @@
+{% load i18n %}
+{# The matrix is drawn by matrix.js from the REST API; this is its frame, shared by the page and the group tab. #}
+<div class="pm-root"
+     data-mode="{{ mode }}"
+     data-action="{{ action|default:'view' }}"
+     data-can-edit="{{ can_edit|yesno:'true,false' }}"
+     data-show-users="{{ show_users|yesno:'true,false' }}"
+     {% if principal_key %}data-principal="{{ principal_key }}"{% endif %}
+     data-url-matrix="{{ api.matrix }}"
+     data-url-principal="{{ api.principal }}"
+     data-url-plan="{{ api.plan }}"
+     data-url-apply="{{ api.apply }}"
+     data-url-who-can="{{ who_can_url }}"
+     data-url-permission="{% url 'users:objectpermission' pk=0 %}">
+
+  <div class="pm-toolbar">
+    {% if mode == "matrix" %}
+      <ul class="nav nav-pills pm-tabs" role="tablist" aria-label="{% trans 'Action' %}"></ul>
+    {% endif %}
+    <div class="pm-filters">
+      <input type="search" class="form-control form-control-sm pm-search" placeholder="{% trans 'Search object types' %}" aria-label="{% trans 'Search object types' %}">
+      <select class="form-select form-select-sm pm-app-filter no-ts" aria-label="{% trans 'App' %}">
+        <option value="">{% trans "All apps" %}</option>
+      </select>
+      <label class="form-check form-switch m-0">
+        <input class="form-check-input pm-only-granted" type="checkbox">
+        <span class="form-check-label">{% trans "Only rows with grants" %}</span>
+      </label>
+      {% if mode == "matrix" %}
+        <label class="form-check form-switch m-0">
+          <input class="form-check-input pm-users" type="checkbox">
+          <span class="form-check-label">{% trans "Users" %}</span>
+        </label>
+        <button type="button" class="btn btn-sm btn-outline-secondary pm-columns-button">
+          <i class="mdi mdi-table-column" aria-hidden="true"></i> {% trans "Columns" %}
+        </button>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="pm-legend text-secondary small">
+    <span><span class="pm-swatch pm-granted" aria-hidden="true"></span> {% trans "Granted" %}</span>
+    <span><span class="pm-swatch pm-constrained" aria-hidden="true"></span> {% trans "Constrained" %}</span>
+    <span><span class="pm-swatch pm-disabled" aria-hidden="true"></span> {% trans "Disabled permission" %}</span>
+    <span><span class="pm-swatch pm-none" aria-hidden="true"></span> {% trans "Not granted" %}</span>
+    <span><span class="pm-dot" aria-hidden="true"></span> {% trans "Also through a group" %}</span>
+    {% if can_edit %}<span><span class="pm-swatch pm-staged" aria-hidden="true"></span> {% trans "Staged" %}</span>{% endif %}
+  </div>
+
+  <div class="pm-message" role="status" aria-live="polite"></div>
+  <div class="pm-scroll card">
+    <div class="pm-loading p-4 text-secondary">{% trans "Loading..." %}</div>
+  </div>
+
+  {% if can_edit %}
+    <div class="pm-bar" hidden>
+      <span class="pm-count"></span>
+      <button type="button" class="btn btn-outline-secondary pm-discard">{% trans "Discard" %}</button>
+      <button type="button" class="btn btn-primary pm-review">{% trans "Review changes" %}</button>
+    </div>
+  {% endif %}
+
+  <dialog class="pm-dialog pm-review-dialog" aria-labelledby="pm-review-title">
+    <form method="dialog" class="pm-dialog-inner">
+      <header class="pm-dialog-header">
+        <h2 id="pm-review-title" class="h3 m-0">{% trans "Review changes" %}</h2>
+        <button class="btn-close" value="cancel" aria-label="{% trans 'Close' %}"></button>
+      </header>
+      <div class="pm-dialog-body pm-review-body"></div>
+      <footer class="pm-dialog-footer">
+        <button class="btn btn-outline-secondary" value="cancel">{% trans "Back to the matrix" %}</button>
+        <button type="button" class="btn btn-primary pm-apply">{% trans "Apply" %}</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <dialog class="pm-dialog pm-panel" aria-labelledby="pm-panel-title">
+    <form method="dialog" class="pm-dialog-inner">
+      <header class="pm-dialog-header">
+        <h2 id="pm-panel-title" class="h3 m-0"></h2>
+        <button class="btn-close" value="cancel" aria-label="{% trans 'Close' %}"></button>
+      </header>
+      <div class="pm-dialog-body pm-panel-body"></div>
+      <footer class="pm-dialog-footer">
+        <button class="btn btn-outline-secondary" value="cancel">{% trans "Close" %}</button>
+        {% if can_edit %}<button type="button" class="btn btn-primary pm-panel-stage">{% trans "Stage changes" %}</button>{% endif %}
+      </footer>
+    </form>
+  </dialog>
+
+  <dialog class="pm-dialog pm-columns-dialog" aria-labelledby="pm-columns-title">
+    <form method="dialog" class="pm-dialog-inner">
+      <header class="pm-dialog-header">
+        <h2 id="pm-columns-title" class="h3 m-0">{% trans "Columns" %}</h2>
+        <button class="btn-close" value="cancel" aria-label="{% trans 'Close' %}"></button>
+      </header>
+      <div class="pm-dialog-body pm-columns-body"></div>
+      <footer class="pm-dialog-footer">
+        <button type="button" class="btn btn-outline-secondary pm-columns-all">{% trans "Show all" %}</button>
+        <button class="btn btn-primary pm-columns-apply" value="apply">{% trans "Show selected" %}</button>
+      </footer>
+    </form>
+  </dialog>
+</div>

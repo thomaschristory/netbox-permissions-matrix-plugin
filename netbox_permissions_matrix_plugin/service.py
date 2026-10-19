@@ -6,6 +6,8 @@ import json
 from dataclasses import dataclass
 
 from django.core.exceptions import FieldError, PermissionDenied, ValidationError
+from django.db.models import Q
+from django.http import Http404
 from users.constants import CONSTRAINT_TOKEN_USER
 from users.models import Group, ObjectPermission, User
 from utilities.permissions import qs_filter_from_constraints
@@ -162,3 +164,83 @@ def plan_json(snap: Snapshot, result: Plan, token: str) -> dict:
 
 def dumps(data) -> str:
     return json.dumps(data, sort_keys=True)
+
+
+def principal_payload(user, ref: PrincipalRef) -> dict:
+    check_view(user)
+    visible = visible_groups(user) if ref.kind == GROUP else visible_users(user)
+    if ref.id not in visible:
+        raise Http404(f"No such {ref.kind}")
+    snap = loader.load_snapshot(user_ids=[ref.id] if ref.kind == USER else ())
+    row_list = loader.rows(get_setting("hidden_apps"))
+    return matrix.build_principal(snap, row_list, ref, loader.action_tabs(snap, row_list), can_edit(user))
+
+
+def who_can(user, label: str) -> dict:
+    """Everyone holding any action on one object type, directly and through groups."""
+    from core.models import ObjectType
+
+    from .core.cells import covering, state_of
+
+    check_view(user)
+    row = next((r for r in loader.rows() if r.object_type == label), None)
+    if row is None:
+        raise Http404(f"{label} is not an object type permissions can be assigned to")
+    snap = loader.load_snapshot()
+    tabs = loader.action_tabs(snap, [row])
+    custom = [t for t in tabs if not t.custom or t.name in row.custom_actions]
+    used = {a for p in snap.perms.values() if label in p.object_types for a in p.actions}
+    actions = [t for t in custom if not t.freeform or t.name in used]
+
+    groups, users = visible_groups(user), visible_users(user)
+    principals = []
+    for ref in sorted(snap.principals, key=lambda r: (r.kind != GROUP, snap.name_of(r).lower())):
+        if ref.id not in (groups if ref.kind == GROUP else users):
+            continue
+        cells = {}
+        for tab in actions:
+            perms = covering(snap, ref, label, tab.name)
+            if perms:
+                cells[tab.name] = {
+                    "state": str(state_of(perms)),
+                    "perms": [matrix.perm_summary(p, snap) for p in perms],
+                }
+        if cells:
+            principals.append({"ref": ref, "type": ref.kind, "id": ref.id, "name": snap.name_of(ref), "cells": cells})
+
+    # Effective access: members of the groups above plus users with direct grants, active ones only.
+    group_ids = [p["id"] for p in principals if p["type"] == GROUP]
+    direct_ids = [p["id"] for p in principals if p["type"] == USER]
+    candidates = User.objects.filter(is_active=True).filter(Q(groups__in=group_ids) | Q(pk__in=direct_ids))
+    candidates = candidates.distinct().prefetch_related("groups").order_by("username")
+    effective = []
+    for member in candidates:
+        if member.pk not in users:
+            continue
+        sources = [(PrincipalRef(USER, member.pk), "direct")]
+        sources += [(PrincipalRef(GROUP, g.pk), g.name) for g in member.groups.all()]
+        row_actions = {}
+        for tab in actions:
+            found, names = [], []
+            for ref, source in sources:
+                perms = covering(snap, ref, label, tab.name)
+                if perms:
+                    found += perms
+                    names.append(source)
+            if found:
+                row_actions[tab.name] = {
+                    "state": str(state_of(found)),
+                    "sources": names,
+                    "constraints": [p.constraints for p in found if p.enabled and p.constrained],
+                }
+        if row_actions:
+            effective.append({"user": member, "username": member.username, "actions": row_actions})
+
+    return {
+        "row": row,
+        "object_type": ObjectType.objects.get(app_label=row.app_label, model=label.split(".")[1]),
+        "actions": actions,
+        "principals": principals,
+        "effective": effective,
+        "superusers": User.objects.filter(is_superuser=True, is_active=True).order_by("username"),
+    }

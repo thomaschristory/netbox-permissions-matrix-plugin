@@ -192,3 +192,15 @@ class PlanApplyTest(APITestBase):
         self.post(APPLY, {"changes": changes, "edits": [], "token": token})
         created = perm_state(ObjectPermission.objects.get(name="Ops | delete"))
         self.assertEqual((created["object_types"], created["groups"]), (["ipam.prefix"], ["Ops"]))
+
+
+class PrincipalAPITest(APITestBase):
+    def test_cells_by_object_type_and_action(self):
+        self.add_permissions(*VIEW)
+        url = reverse("plugins-api:netbox_permissions_matrix_plugin-api:principal")
+        data = self.client.get(url, {"type": "group", "id": self.noc.pk}).json()
+        self.assertEqual(data["principal"]["name"], "NOC")
+        self.assertEqual(data["cells"]["dcim.device"]["change"]["state"], "granted")
+        self.assertNotIn("delete", data["cells"]["dcim.device"])
+        self.assertIn("view", [a["name"] for a in data["actions"]])
+        self.assertEqual(self.client.get(url, {"type": "group", "id": 999999}).status_code, 404)

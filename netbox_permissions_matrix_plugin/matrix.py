@@ -87,3 +87,44 @@ def build(
         "columns": [column(snap, ref, action) for ref in columns],
         "cells": cells,
     }
+
+
+def build_principal(snap: Snapshot, row_list: list[Row], ref: PrincipalRef, tabs: list[ActionTab], can_edit: bool):
+    """One principal's matrix turned around: object types down the side, actions across the top."""
+    cells: dict[str, dict] = {}
+    for row in row_list:
+        for tab in tabs:
+            perms = covering(snap, ref, row.object_type, tab.name)
+            entry = {}
+            if perms:
+                entry = {
+                    "state": str(cell_state(snap, ref, row.object_type, tab.name)),
+                    "perms": [perm_summary(p, snap) for p in perms],
+                }
+            if ref.kind == USER:
+                state, groups = inherited_state(snap, ref.id, row.object_type, tab.name)
+                if state is not CellState.NONE:
+                    entry = {"state": str(CellState.NONE), "perms": [], **entry}
+                    entry["inherited"] = {"state": str(state), "groups": groups}
+            if entry:
+                cells.setdefault(row.object_type, {})[tab.name] = entry
+    return {
+        "principal": {"type": ref.kind, "id": ref.id, "key": ref.key, "name": snap.name_of(ref)},
+        "can_edit": can_edit,
+        "actions": [
+            {"name": t.name, "label": t.label, "custom": t.custom, "freeform": t.freeform, "help_text": t.help_text}
+            for t in tabs
+        ],
+        "rows": [
+            {
+                "object_type": r.object_type,
+                "app_label": r.app_label,
+                "app_name": r.app_name,
+                "label": r.label,
+                "enabled_actions": [t.name for t in tabs if row_enabled(r, t)],
+            }
+            for r in row_list
+        ],
+        "columns": {t.name: column(snap, ref, t.name) for t in tabs},
+        "cells": cells,
+    }

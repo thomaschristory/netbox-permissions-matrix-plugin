@@ -1,0 +1,329 @@
+/* Permissions Matrix. Colours come from NetBox's theme (Tabler variables), so light and dark mode both work. */
+
+:root {
+  --pm-granted: var(--tblr-green, #2fb344);
+  --pm-constrained: var(--tblr-yellow, #f59f00);
+  --pm-disabled: var(--tblr-secondary, #667382);
+  --pm-staged: var(--tblr-primary, #066fd1);
+  --pm-border: var(--tblr-border-color, #dce1e7);
+  --pm-surface: var(--tblr-bg-surface, #fff);
+  --pm-muted: var(--tblr-bg-surface-secondary, #f6f8fb);
+}
+
+.pm-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.pm-tabs {
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.pm-tab-custom {
+  font-style: italic;
+}
+
+.pm-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.pm-search {
+  width: 14rem;
+}
+
+.pm-app-filter {
+  width: auto;
+}
+
+.pm-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.pm-scroll {
+  overflow: auto;
+  max-height: calc(100vh - 16rem);
+  min-height: 12rem;
+}
+
+.pm-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: max-content;
+  min-width: 100%;
+}
+
+.pm-table th,
+.pm-table td {
+  border-bottom: 1px solid var(--pm-border);
+  padding: 0.2rem 0.4rem;
+  background: var(--pm-surface);
+}
+
+/* Header row and object type column stay in view while scrolling. */
+.pm-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  vertical-align: bottom;
+}
+
+.pm-table .pm-rowhead {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  min-width: 14rem;
+  max-width: 22rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-right: 1px solid var(--pm-border);
+  font-weight: normal;
+}
+
+.pm-table thead .pm-corner {
+  left: 0;
+  z-index: 3;
+  border-right: 1px solid var(--pm-border);
+}
+
+.pm-colhead {
+  text-align: center;
+  min-width: 4.5rem;
+  max-width: 9rem;
+}
+
+.pm-colname {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.pm-colctl {
+  display: flex;
+  justify-content: center;
+  gap: 0.1rem;
+}
+
+.pm-app-row .pm-rowhead,
+.pm-app-row .pm-app-fill {
+  background: var(--pm-muted);
+  font-weight: 600;
+}
+
+.pm-rowhead .pm-all {
+  float: right;
+  margin-left: 0.25rem;
+}
+
+.pm-all {
+  padding: 0 0.3rem;
+  font-size: 0.75rem;
+}
+
+.pm-td {
+  text-align: center;
+}
+
+/* Cells */
+
+.pm-cell,
+.pm-swatch {
+  display: inline-block;
+  position: relative;
+  width: 1.35rem;
+  height: 1.35rem;
+  border: 2px solid var(--pm-border);
+  border-radius: 0.3rem;
+  background: transparent;
+  padding: 0;
+  vertical-align: middle;
+}
+
+.pm-swatch {
+  width: 1rem;
+  height: 1rem;
+}
+
+button.pm-cell {
+  cursor: pointer;
+}
+
+button.pm-cell:hover {
+  border-color: var(--pm-staged);
+}
+
+button.pm-cell:focus-visible {
+  outline: 2px solid var(--pm-staged);
+  outline-offset: 2px;
+}
+
+.pm-granted {
+  background: var(--pm-granted);
+  border-color: var(--pm-granted);
+}
+
+.pm-cell.pm-granted::after,
+.pm-swatch.pm-granted::after {
+  content: "";
+  position: absolute;
+  left: 32%;
+  top: 12%;
+  width: 34%;
+  height: 58%;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.pm-constrained {
+  background: linear-gradient(135deg, var(--pm-constrained) 50%, transparent 50%);
+  border-color: var(--pm-constrained);
+}
+
+.pm-disabled {
+  background: var(--pm-disabled);
+  border-color: var(--pm-disabled);
+  opacity: 0.45;
+}
+
+.pm-off {
+  border-style: dotted;
+  opacity: 0.35;
+}
+
+.pm-is-staged,
+.pm-swatch.pm-staged {
+  outline: 3px solid var(--pm-staged);
+  outline-offset: 1px;
+}
+
+.pm-dot,
+.pm-inherited::before {
+  display: inline-block;
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: var(--pm-staged);
+}
+
+.pm-inherited::before {
+  content: "";
+  position: absolute;
+  top: -0.3rem;
+  right: -0.3rem;
+}
+
+/* Staged changes bar */
+
+.pm-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 4;
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0.6rem 1rem;
+  margin-top: 0.5rem;
+  background: var(--pm-surface);
+  border: 1px solid var(--pm-border);
+  border-radius: 0.4rem;
+  box-shadow: 0 -0.25rem 1rem rgb(0 0 0 / 10%);
+}
+
+.pm-bar[hidden] {
+  display: none;
+}
+
+.pm-count {
+  margin-right: auto;
+  font-weight: 600;
+}
+
+/* Dialogs */
+
+.pm-dialog {
+  width: min(56rem, 95vw);
+  max-height: 90vh;
+  padding: 0;
+  border: 1px solid var(--pm-border);
+  border-radius: 0.5rem;
+  background: var(--pm-surface);
+  color: inherit;
+}
+
+.pm-dialog::backdrop {
+  background: rgb(0 0 0 / 40%);
+}
+
+.pm-panel {
+  width: min(32rem, 95vw);
+  height: 100vh;
+  max-height: 100vh;
+  margin: 0 0 0 auto;
+  border-radius: 0;
+}
+
+.pm-dialog-inner {
+  display: flex;
+  flex-direction: column;
+  max-height: inherit;
+  height: 100%;
+}
+
+.pm-dialog-header,
+.pm-dialog-footer {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--pm-border);
+}
+
+.pm-dialog-footer {
+  justify-content: flex-end;
+  border-top: 1px solid var(--pm-border);
+  border-bottom: 0;
+}
+
+.pm-dialog-body {
+  overflow: auto;
+  padding: 1rem;
+  flex: 1;
+}
+
+.pm-diff th {
+  width: 9rem;
+  font-weight: 600;
+}
+
+.pm-diff .pm-before {
+  color: var(--tblr-red, #d63939);
+  text-decoration: line-through;
+}
+
+.pm-diff .pm-after {
+  color: var(--tblr-green, #2fb344);
+}
+
+.pm-columns-list {
+  columns: 2 12rem;
+}
+
+.pm-who-table td,
+.pm-who-table th {
+  vertical-align: middle;
+}
