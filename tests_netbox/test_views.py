@@ -38,6 +38,15 @@ class MatrixPageTest(TestCase):
         html = self.client.get(reverse(MATRIX)).content.decode()
         self.assertIn('data-can-edit="true"', html)
         self.assertIn(reverse("plugins-api:netbox_permissions_matrix_plugin-api:apply"), html)
+        self.assertIn('class="pm-import"', html)
+        self.assertIn(reverse("plugins:netbox_permissions_matrix_plugin:export"), html)
+        self.assertIn(reverse("plugins-api:netbox_permissions_matrix_plugin-api:import"), html)
+
+    def test_read_only_page_can_export_but_not_import(self):
+        self.add_permissions(*VIEW)
+        html = self.client.get(reverse(MATRIX)).content.decode()
+        self.assertIn("pm-export", html)
+        self.assertNotIn('class="pm-import"', html)
 
     def test_constrained_view_permission_gets_an_explanation(self):
         self.add_permissions(*VIEW)
