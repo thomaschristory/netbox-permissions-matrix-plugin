@@ -97,7 +97,9 @@ curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/
     {"op": "update", "key": "4", "id": 4, "before": {"name": "NOC-RW"}, "after": {"name": "NOC-RW"},
      "affects": [{"type": "group", "id": 1, "name": "NOC"}],
      "reasons": ["Remove NOC, who loses change dcim.site; other assignees unchanged"]},
-    {"op": "create", "key": "new-1", "id": null, "before": null, "after": {"name": "NOC-RW (NOC)"}, "affects": []}
+    {"op": "create", "key": "new-1", "id": null, "before": null, "after": {"name": "NOC-RW (NOC)"},
+     "affects": [{"type": "group", "id": 1, "name": "NOC"}],
+     "reasons": ["Keep what NOC had from NOC-RW, without change dcim.site"]}
   ]
 }
 ```

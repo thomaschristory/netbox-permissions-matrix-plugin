@@ -122,7 +122,8 @@ The gear icon on a column opens a side panel for that principal and the active a
 
 - The principal's simple permission for this action, if there is one, as an editable form: name, description,
   enabled, constraints (JSON, validated the way the classic form validates it), additional users and groups,
-  additional actions. If there is none, the form creates one on apply.
+  additional actions. If there is none, the panel says so: ticking a cell in the column creates one, which can then be
+  edited.
 - Every other permission that grants this action to the principal, read-only, with a summary (object types,
   actions, other principals, constraints) and a link to its classic edit page.
 

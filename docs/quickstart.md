@@ -40,7 +40,8 @@ permission shares with other groups splits that permission, so the other groups 
 5. Click **Apply**. Everything is written in one transaction, and the matrix reloads.
 
 The new or changed permissions are ordinary NetBox permissions: open **Admin > Authentication > Permissions** to see
-them, with their change log entries.
+them. NetBox keeps no change log for permissions; the plugin logs every write instead (see
+[Troubleshooting](troubleshooting.md#logging)).
 
 ## 4. Look at one group
 

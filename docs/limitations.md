@@ -11,6 +11,10 @@ permission setups do not fit in a grid of checkboxes. This page lists what to ke
   The View tab shows only what permissions grant, so an exempt model can show "not granted" for a group whose members
   can still view it.
 - **Anonymous access** with `LOGIN_REQUIRED = False` is not a group and has no column.
+- **`DEFAULT_PERMISSIONS`** grants every authenticated user some access (by default, managing their own API tokens)
+  without a permission object, so the matrix never shows it.
+- **`REMOTE_AUTH_DEFAULT_PERMISSIONS`** works the same way for users created by remote authentication, and
+  **`REMOTE_AUTH_DEFAULT_GROUPS`** adds them to groups, whose access the matrix does show.
 - **Group membership** is managed on the user and group pages. A user column shows the user's own permissions; access
   through groups is only marked with a dot. Remote authentication (LDAP, SSO) may add users to groups at login, which
   the matrix reflects only once it has happened.
@@ -48,6 +52,7 @@ limited to some permissions by constraints cannot use it, and should keep using 
 
 ## Changes made elsewhere
 
-The matrix reads permissions when it loads. If someone changes a permission involved in your staged changes before
-you apply, apply refuses and asks you to reload, so nothing is overwritten. Changes to permissions your plan does not
-touch do not block it.
+The matrix reads permissions when it loads. If, before you apply, someone changes a permission assigned to a group or
+user in your staged changes, or creates, renames or deletes any permission (new names could clash with the ones your
+plan creates), apply refuses and asks you to review again, so nothing is overwritten. Other changes, such as editing
+a permission of an unrelated group, do not block it.
