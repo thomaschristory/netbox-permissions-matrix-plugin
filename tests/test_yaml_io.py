@@ -1,7 +1,7 @@
 import pytest
 
 from netbox_permissions_matrix_plugin.core.model import CellChange
-from netbox_permissions_matrix_plugin.core.yaml_io import FORMAT_VERSION, export_doc, import_changes
+from netbox_permissions_matrix_plugin.core.yaml_io import FORMAT_VERSION, dump, export_doc, import_changes, load
 
 from .factories import ALICE, NOC, OPS, perm, snapshot
 
@@ -122,3 +122,39 @@ def test_unknown_principals_and_object_types_are_errors():
 def test_malformed_documents_are_errors(doc):
     changes, _, errors = import_changes(base(), doc, set(TYPES))
     assert changes == [] and errors
+
+
+def test_principals_outside_visible_are_unknown_and_leak_nothing():
+    # A user who may not see Ops gets the same error as for a group that does not exist, and no warning or change
+    # that would reveal what Ops holds.
+    snap = base()
+    doc = export_doc(snap, TYPES, [NOC, OPS], ["view", "change"])
+    doc["grants"] = {}
+    doc["constrained"]["group:Ops"] = {"change": [{"object_type": "dcim.device", "permission": "x", "constraints": {}}]}
+    changes, warnings, errors = import_changes(snap, doc, set(TYPES), visible={NOC})
+    assert errors == ["Unknown group 'Ops': its entries are skipped."]
+    assert all(c.principal == NOC for c in changes)
+    assert not [w for w in warnings if "Ops" in w]
+
+
+def test_unsupported_version_is_not_echoed_when_large():
+    _, _, errors = import_changes(base(), {"version": ["x" * 10_000]}, set(TYPES))
+    assert len(errors[0]) < 200
+
+
+def test_dump_never_writes_anchors_and_load_round_trips():
+    shared = {"site__slug": "paris"}
+    doc = {"a": [shared, shared]}
+    text = dump(doc)
+    assert "&" not in text and "*" not in text
+    assert load(text) == doc
+
+
+def test_load_refuses_aliases():
+    with pytest.raises(ValueError, match="aliases"):
+        load("a: &x [1, 2]\nb: *x\n")
+
+
+def test_load_reports_invalid_yaml_as_value_error():
+    with pytest.raises(ValueError):
+        load("{not: [valid")

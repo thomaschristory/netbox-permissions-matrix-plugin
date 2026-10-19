@@ -1,6 +1,5 @@
 import datetime
 
-import yaml
 from django.conf import settings
 from django.contrib.auth.mixins import AccessMixin
 from django.http import HttpResponse
@@ -14,6 +13,7 @@ from utilities.views import ViewTab, register_model_view
 
 from . import service
 from .conf import get_setting
+from .core import yaml_io
 from .version import __version__
 
 API = "plugins-api:netbox_permissions_matrix_plugin-api"
@@ -66,8 +66,7 @@ class ExportView(MatrixAccessMixin, View):
             app_labels=tuple(a for a in params.getlist("app") if a),
         )
         doc = service.export_payload(request.user, query, params.get("q", ""))
-        body = yaml.safe_dump(doc, sort_keys=False, allow_unicode=True, default_flow_style=False)
-        response = HttpResponse(body, content_type="application/yaml; charset=utf-8")
+        response = HttpResponse(yaml_io.dump(doc), content_type="application/yaml; charset=utf-8")
         filename = f"permissions-matrix-{datetime.date.today():%Y-%m-%d}.yaml"
         response["Content-Disposition"] = f'attachment; filename="{filename}"'
         return response

@@ -284,15 +284,9 @@ def import_for(user, doc) -> dict:
         named = [p.get("name") for p in scope["principals"] if isinstance(p, dict) and p.get("type") == USER]
     usernames = [n for n in named if isinstance(n, str)]
     snap = loader.load_snapshot(user_ids=list(User.objects.filter(username__in=usernames).values_list("pk", flat=True)))
-    changes, warnings, errors = import_changes(snap, doc, {r.object_type for r in loader.rows()})
-
-    # Principals this user may not see are reported exactly like ones that do not exist.
     groups, users = visible_groups(user), visible_users(user)
-    hidden = {r for r in snap.principals if r.id not in (groups if r.kind == GROUP else users)}
-    for ref in sorted(hidden, key=lambda r: (r.kind, snap.name_of(r))):
-        if {"type": ref.kind, "name": snap.name_of(ref)} in (scope or {}).get("principals", []):
-            errors.append(f"Unknown {ref.kind} {snap.name_of(ref)!r}: its entries are skipped.")
-    changes = [c for c in changes if c.principal not in hidden]
+    visible = {r for r in snap.principals if r.id in (groups if r.kind == GROUP else users)}
+    changes, warnings, errors = import_changes(snap, doc, {r.object_type for r in loader.rows()}, visible)
     return {
         "changes": [
             {

@@ -1,4 +1,4 @@
-"""The matrix as a portable document (written as YAML by the Django layer), and its import as cell changes.
+"""The matrix as a portable YAML document, and its import as cell changes.
 
 Principals are named by group name or username and object types by "app_label.model", never by ID, so a file can
 move between NetBox instances. The file records its scope; an import changes cells inside that scope only.
@@ -8,11 +8,39 @@ from __future__ import annotations
 
 import re
 
+import yaml
+
 from .cells import CellState, cell_state, covering
 from .model import GROUP, USER, CellChange, PrincipalRef, Snapshot
 
 FORMAT_VERSION = 1
 ACTION = re.compile(r"^[a-z_][a-z0-9_]{0,29}$")
+
+
+class _Dumper(yaml.SafeDumper):
+    def ignore_aliases(self, data):
+        # Permissions sharing one constraints object must not come out as anchors: load() refuses aliases.
+        return True
+
+
+class _Loader(yaml.SafeLoader):
+    def compose_node(self, parent, index):
+        # Aliases let a few bytes expand into a huge document; an export never contains them.
+        if self.check_event(yaml.AliasEvent):
+            raise yaml.YAMLError("aliases are not allowed in a permissions matrix file")
+        return super().compose_node(parent, index)
+
+
+def dump(doc: dict) -> str:
+    return yaml.dump(doc, Dumper=_Dumper, sort_keys=False, allow_unicode=True, default_flow_style=False)
+
+
+def load(text: str):
+    """Parse an uploaded file. Raises ValueError with a readable message."""
+    try:
+        return yaml.load(text, Loader=_Loader)  # noqa: S506 (a SafeLoader subclass)
+    except yaml.YAMLError as exc:
+        raise ValueError(f"Not a valid YAML file: {exc}") from exc
 
 
 def principal_label(snap: Snapshot, ref: PrincipalRef) -> str:
@@ -57,7 +85,7 @@ def _scope(doc) -> tuple[list, list, list] | str:
     if not isinstance(doc, dict):
         return "The file is not a permissions matrix export."
     if doc.get("version") != FORMAT_VERSION:
-        return f"Unsupported format version {doc.get('version')!r}; this plugin reads version {FORMAT_VERSION}."
+        return f"Unsupported format version; this plugin reads version {FORMAT_VERSION}."
     scope = doc.get("scope")
     if not isinstance(scope, dict):
         return "The file has no scope."
@@ -85,8 +113,13 @@ def _listed(section, label: str, action: str) -> set[str]:
     return {i if isinstance(i, str) else i.get("object_type") for i in items if isinstance(i, str | dict)}
 
 
-def import_changes(snap: Snapshot, doc, valid_object_types: set[str]) -> tuple[list[CellChange], list[str], list[str]]:
-    """Cell changes that make the scope of the document true. Returns (changes, warnings, errors)."""
+def import_changes(
+    snap: Snapshot, doc, valid_object_types: set[str], visible: set[PrincipalRef] | None = None
+) -> tuple[list[CellChange], list[str], list[str]]:
+    """Cell changes that make the scope of the document true. Returns (changes, warnings, errors).
+
+    Principals outside `visible` (when given) are reported exactly like principals that do not exist.
+    """
     scope = _scope(doc)
     if isinstance(scope, str):
         return [], [], [scope]
@@ -97,7 +130,7 @@ def import_changes(snap: Snapshot, doc, valid_object_types: set[str]) -> tuple[l
     refs = []
     for entry in principals:
         ref = by_name.get((entry["type"], entry["name"]))
-        if ref is None:
+        if ref is None or (visible is not None and ref not in visible):
             errors.append(f"Unknown {entry['type']} {entry['name']!r}: its entries are skipped.")
         else:
             refs.append(ref)
@@ -111,9 +144,10 @@ def import_changes(snap: Snapshot, doc, valid_object_types: set[str]) -> tuple[l
         for per_action in (doc.get(section) or {}).values():
             for listed in (per_action or {}).values() if isinstance(per_action, dict) else ():
                 for item in listed or []:
-                    ot = item if isinstance(item, str) else (item or {}).get("object_type")
+                    ot = item if isinstance(item, str) else item.get("object_type") if isinstance(item, dict) else None
                     if (
-                        ot not in valid_object_types
+                        isinstance(ot, str)
+                        and ot not in valid_object_types
                         and f"Unknown object type {ot}: its entries are skipped." not in errors
                     ):
                         errors.append(f"Unknown object type {ot}: its entries are skipped.")

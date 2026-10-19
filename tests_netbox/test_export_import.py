@@ -166,7 +166,7 @@ class ImportTest(ExportImportBase):
         self.assertEqual(len(data["warnings"]), 1)
 
     def test_invalid_yaml_is_rejected(self):
-        for text in ("{not: [valid", "just a string", ""):
+        for text in ("{not: [valid", "just a string", "", "a: &x [1]\nversion: *x\n"):
             with self.subTest(text=text):
                 response = self.do_import(text)
                 self.assertEqual(response.status_code, 400 if text != "just a string" else 200)
