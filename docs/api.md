@@ -1,0 +1,128 @@
+# REST API
+
+Everything the matrix page does goes through three endpoints under `/api/plugins/permissions-matrix/`. Use them to
+script permission changes with the same safety rules as the page: plan first, review, then apply with the token the
+plan returned.
+
+Authenticate as for any NetBox API call, with a token:
+
+```bash
+export NETBOX=https://netbox.example.com
+export TOKEN="nbt_xxxxxxxx.yyyyyyyy"
+curl -s -H "Authorization: Bearer $TOKEN" -H "Accept: application/json" "$NETBOX/api/plugins/permissions-matrix/matrix/?action=change"
+```
+
+The [same permissions](permissions.md) as on the page apply.
+
+## `GET matrix/`
+
+The matrix for one action.
+
+| Parameter | Default | Meaning |
+|-----------|---------|---------|
+| `action` | `view` | The action: `view`, `add`, `change`, `delete`, a registered custom action, or any other action name. |
+| `include_users` | the `show_users_by_default` setting | `true` adds a column for every user with a permission assigned directly. |
+| `group_id` | all groups | Only these groups. Repeat the parameter for several. |
+| `user_id` | | These users, whether or not they have direct permissions. Implies user columns. |
+| `app_label` | all apps | Only rows of these apps. Repeat for several. |
+
+The response:
+
+```json
+{
+  "action": "change",
+  "can_edit": true,
+  "actions": [{"name": "view", "label": "View", "custom": false, "freeform": false, "help_text": ""}],
+  "rows": [{"object_type": "dcim.device", "app_label": "dcim", "app_name": "DCIM", "label": "Device", "enabled": true}],
+  "columns": [
+    {"type": "group", "id": 1, "key": "group:1", "name": "NOC", "simple": null, "others": []}
+  ],
+  "cells": {
+    "group:1": {
+      "dcim.device": {"state": "granted", "perms": [{"id": 4, "name": "NOC-RW", "enabled": true, "constrained": false}]}
+    }
+  }
+}
+```
+
+- `cells` lists only cells something covers; a missing cell is `none`.
+- `state` is `granted`, `constrained`, `disabled` or `none`; see [Cell states](matrix.md#cell-states).
+- A user cell can carry `"inherited": {"state": "granted", "groups": ["NOC"]}`: access through group membership,
+  which the user column never edits.
+- `columns[].simple` is the principal's simple permission for the action (the one new grants go into), and
+  `columns[].others` every other permission granting it the action.
+- Permission objects in `perms`, `simple` and `others` also carry `description`, `actions`, `object_types`,
+  `constraints`, `principals` and `url`.
+
+## Change sets
+
+`plan/` and `apply/` take the same body:
+
+```json
+{
+  "changes": [
+    {"principal": {"type": "group", "id": 1}, "object_type": "dcim.site", "action": "change", "granted": false},
+    {"principal": {"type": "user", "id": 7}, "object_type": "ipam.prefix", "action": "view", "granted": true}
+  ],
+  "edits": [
+    {"principal": {"type": "group", "id": 1}, "action": "view", "description": "Read access for the NOC"}
+  ]
+}
+```
+
+- `changes`: cells to grant (`true`) or revoke (`false`). If a cell appears twice, the last entry wins.
+- `edits`: changes to a principal's simple permission for an action, as in the
+  [gear panel](matrix.md#the-gear-panel). Optional fields: `name`, `description`, `enabled`, `constraints` (an
+  object, a list of objects, or `null` to remove them), `add_actions`, `add_groups`, `add_users` (IDs).
+
+`object_type` must be one NetBox allows in a permission. Unknown groups or users, invalid action names and invalid
+constraints are refused with HTTP 400.
+
+## `POST plan/`
+
+A dry run. Nothing is written.
+
+```bash
+curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  "$NETBOX/api/plugins/permissions-matrix/plan/" \
+  -d '{"changes": [{"principal": {"type": "group", "id": 1}, "object_type": "dcim.site", "action": "change", "granted": false}]}'
+```
+
+```json
+{
+  "token": "3f1c...",
+  "warnings": [],
+  "operations": [
+    {"op": "update", "key": "4", "id": 4, "before": {"name": "NOC-RW"}, "after": {"name": "NOC-RW"},
+     "affects": [{"type": "group", "id": 1, "name": "NOC"}],
+     "reasons": ["Remove NOC, who loses change dcim.site; other assignees unchanged"]},
+    {"op": "create", "key": "new-1", "id": null, "before": null, "after": {"name": "NOC-RW (NOC)"}, "affects": []}
+  ]
+}
+```
+
+`before` and `after` are full permission objects (shortened above). `affects` lists the principals whose access the
+operation changes. The [planning rules](changes.md) explain why each operation is there.
+
+## `POST apply/`
+
+The same body plus the `token` from `plan/`:
+
+```bash
+curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  "$NETBOX/api/plugins/permissions-matrix/apply/" \
+  -d '{"changes": [...], "token": "3f1c..."}'
+```
+
+The server plans the change set again and compares tokens. The response is the plan plus `written`, the list of
+permissions created, changed and deleted (`op`, `id`, `name`).
+
+| Status | Meaning |
+|--------|---------|
+| 200 | Applied. Everything in `written` is saved. |
+| 400 | The change set is invalid, or `token` is missing. |
+| 403 | You may not use the matrix, or not add, change or delete one of the permissions in the plan. Nothing was written. |
+| 409 | A permission the plan depends on changed after `plan/`. Nothing was written: plan again. |
+
+The whole apply runs in one database transaction, with the permission table locked against other writers, so it
+either applies completely or not at all.

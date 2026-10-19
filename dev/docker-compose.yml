@@ -22,7 +22,8 @@ services:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
       redis-cache: { condition: service_healthy }
-    ports: ["8000:8080"]
+    # NETBOX_PORT=8010 make dev when another stack already uses 8000.
+    ports: ["${NETBOX_PORT:-8000}:8080"]
     healthcheck:
       test: /opt/netbox/health.sh
       # A fresh database runs every migration first, which takes several minutes.
