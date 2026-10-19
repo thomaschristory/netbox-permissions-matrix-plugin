@@ -44,16 +44,20 @@ nav:
   - Home: index.md
   - Getting started:
       - Installation: installation.md
+      - Quick start: quickstart.md
       - Configuration: configuration.md
   - Using the plugin:
       - The matrix: matrix.md
       - How changes map to permissions: changes.md
       - Who can: who-can.md
+      - Group tab: group-tab.md
       - Export and import: export-import.md
       - Permissions: permissions.md
       - REST API: api.md
   - Operations:
+      - Limitations: limitations.md
       - Troubleshooting: troubleshooting.md
   - Project:
+      - Development: development.md
       - Design: DESIGN.md
       - Changelog: changelog.md

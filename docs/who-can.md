@@ -7,6 +7,8 @@ Open it by clicking an object type in the matrix, or at
 `/plugins/permissions-matrix/object-types/<app_label>.<model>/`, for example
 `/plugins/permissions-matrix/object-types/ipam.prefix/`.
 
+![Who can: Device](img/who-can.png)
+
 ## Principals
 
 The first table has a row for every group and user that holds any action on the object type through a permission

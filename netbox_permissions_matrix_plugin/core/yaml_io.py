@@ -41,6 +41,8 @@ def load(text: str):
         return yaml.load(text, Loader=_Loader)  # noqa: S506 (a SafeLoader subclass)
     except yaml.YAMLError as exc:
         raise ValueError(f"Not a valid YAML file: {exc}") from exc
+    except RecursionError as exc:
+        raise ValueError("Not a valid YAML file: it is nested too deeply.") from exc
 
 
 def principal_label(snap: Snapshot, ref: PrincipalRef) -> str:
@@ -103,14 +105,34 @@ def _scope(doc) -> tuple[list, list, list] | str:
     return principals, actions, object_types
 
 
+SECTIONS = ("grants", "constrained", "disabled")
+
+
+def _entry_type(item):
+    """The object type of a listed item: a string under grants, an {object_type: ...} entry elsewhere."""
+    return item if isinstance(item, str) else item.get("object_type") if isinstance(item, dict) else None
+
+
+def _sections(doc) -> str | None:
+    """Each section maps "type:name" to {action: [object types or entries]}. Returns an error, or None."""
+    for section in SECTIONS:
+        value = doc.get(section) or {}
+        if not isinstance(value, dict):
+            return f"{section} must map principals to actions."
+        for label, per_action in value.items():
+            if not isinstance(label, str) or not isinstance(per_action or {}, dict):
+                return f"{section}: each principal must map actions to lists of object types."
+            for action, items in (per_action or {}).items():
+                if not isinstance(action, str) or not isinstance(items or [], list):
+                    return f"{section}: each action must list object types."
+                if not all(isinstance(_entry_type(i), str) for i in items or []):
+                    return f"{section}: each entry must be an object type like dcim.device, or have one."
+    return None
+
+
 def _listed(section, label: str, action: str) -> set[str]:
-    """Object types listed for a principal and action in grants (strings) or constrained/disabled (entries)."""
-    if not isinstance(section, dict):
-        return set()
-    items = (section.get(label) or {}).get(action) or []
-    if not isinstance(items, list):
-        return set()
-    return {i if isinstance(i, str) else i.get("object_type") for i in items if isinstance(i, str | dict)}
+    """Object types listed for a principal and action in a section already checked by _sections."""
+    return {_entry_type(i) for i in ((section or {}).get(label) or {}).get(action) or []}
 
 
 def import_changes(
@@ -123,6 +145,8 @@ def import_changes(
     scope = _scope(doc)
     if isinstance(scope, str):
         return [], [], [scope]
+    if problem := _sections(doc):
+        return [], [], [problem]
     principals, actions, object_types = scope
     errors, warnings, changes = [], [], []
 
@@ -140,17 +164,14 @@ def import_changes(
             types.append(ot)
         else:
             errors.append(f"Unknown object type {ot}: its entries are skipped.")
-    for section in ("grants", "constrained", "disabled"):
+    for section in SECTIONS:
         for per_action in (doc.get(section) or {}).values():
-            for listed in (per_action or {}).values() if isinstance(per_action, dict) else ():
+            for listed in (per_action or {}).values():
                 for item in listed or []:
-                    ot = item if isinstance(item, str) else item.get("object_type") if isinstance(item, dict) else None
-                    if (
-                        isinstance(ot, str)
-                        and ot not in valid_object_types
-                        and f"Unknown object type {ot}: its entries are skipped." not in errors
-                    ):
-                        errors.append(f"Unknown object type {ot}: its entries are skipped.")
+                    ot = _entry_type(item)
+                    error = f"Unknown object type {ot}: its entries are skipped."
+                    if ot not in valid_object_types and error not in errors:
+                        errors.append(error)
 
     for ref in refs:
         label = f"{ref.kind}:{snap.name_of(ref)}"

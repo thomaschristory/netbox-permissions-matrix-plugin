@@ -19,6 +19,8 @@ NetBox's own permissions, with a review of every change before it is written.
 - Edits native `ObjectPermission` records only. No models, no migrations; uninstalling leaves a normal setup.
 - Safe with shared permissions: a change for one group never changes another group's access.
 - Stage, review, apply: every created, changed or deleted permission is shown first and written in one transaction.
+- Who can page per object type, and a Permissions Matrix tab on each group.
+- Export to YAML and import back, on the same NetBox or another one, through the same review.
 
 ## Compatibility
 
@@ -43,6 +45,7 @@ Matrix**.
 ## Documentation
 
 - [Installation](https://thomaschristory.github.io/netbox-permissions-matrix-plugin/installation/)
+- [Quick start](https://thomaschristory.github.io/netbox-permissions-matrix-plugin/quickstart/)
 - [Configuration](https://thomaschristory.github.io/netbox-permissions-matrix-plugin/configuration/)
 - [Design](https://thomaschristory.github.io/netbox-permissions-matrix-plugin/DESIGN/)
 

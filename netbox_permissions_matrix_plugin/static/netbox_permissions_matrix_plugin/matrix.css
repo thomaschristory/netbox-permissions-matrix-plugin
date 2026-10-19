@@ -207,6 +207,8 @@ button.pm-cell:focus-visible {
 .pm-swatch.pm-staged {
   outline: 3px solid var(--pm-staged);
   outline-offset: 1px;
+  /* The outline takes no space: keep it clear of the label and the previous item. */
+  margin: 0 0.3rem;
 }
 
 .pm-dot,

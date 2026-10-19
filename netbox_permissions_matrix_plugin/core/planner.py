@@ -29,6 +29,7 @@ class _Work:
         self.names: set[str] = {p.name for p in snap.perms.values()}
         self.reasons: dict[str, list[str]] = defaultdict(list)
         self.warnings: list[str] = []
+        self.emptied: set[str] = set()  # keys a revoke left without object types; deleted unless a grant reuses them
         self._new = 0
 
     def order(self, key: str) -> tuple[int, int]:
@@ -111,7 +112,9 @@ def _revoke(work: _Work, ref: PrincipalRef, cells: set[tuple[str, str]]) -> None
         exclusive = perm.principals() == {ref}
 
         if exclusive and not ordered:
-            work.delete(key, f"Revoke {cells_text} for {pname}: nothing left in {perm.name}")
+            # Emptied, not deleted yet: a grant in the same change set may reuse it (see _drop_emptied).
+            work.replace(key, dataclasses.replace(perm, object_types=frozenset()), f"Revoke {cells_text} for {pname}")
+            work.emptied.add(key)
             continue
         if exclusive:
             (actions, types), rest = ordered[0], ordered[1:]
@@ -139,6 +142,14 @@ def _revoke(work: _Work, ref: PrincipalRef, cells: set[tuple[str, str]]) -> None
                 ),
                 f"Keep what {pname} had from {perm.name}, without {cells_text}",
             )
+
+
+def _drop_emptied(work: _Work) -> None:
+    """Delete the permissions revokes emptied and no grant reused."""
+    for key in sorted(work.emptied, key=work.order):
+        perm = work.perms[key]
+        if not perm.object_types:
+            work.delete(key, f"Nothing left in {perm.name}")
 
 
 def _grant(work: _Work, change: CellChange, name_template: str) -> None:
@@ -233,6 +244,7 @@ def plan(
     for change in changes:
         if change.granted:
             _grant(work, change, name_template)
+    _drop_emptied(work)
     for edit in sorted(edits, key=lambda e: (e.principal, e.action)):
         _edit(work, edit)
 

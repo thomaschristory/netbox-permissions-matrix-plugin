@@ -122,7 +122,8 @@ The gear icon on a column opens a side panel for that principal and the active a
 
 - The principal's simple permission for this action, if there is one, as an editable form: name, description,
   enabled, constraints (JSON, validated the way the classic form validates it), additional users and groups,
-  additional actions. If there is none, the form creates one on apply.
+  additional actions. If there is none, the panel says so: ticking a cell in the column creates one, which can then be
+  edited.
 - Every other permission that grants this action to the principal, read-only, with a summary (object types,
   actions, other principals, constraints) and a link to its classic edit page.
 
@@ -181,7 +182,7 @@ For each permission P that covers the revoked cells of principal p (constrained 
    those object types and those actions. This is the smallest set of rectangles that represents the remainder
    exactly when actions are kept per object type.
 4. If P is assigned to p only:
-   - remainder empty: delete P;
+   - remainder empty: delete P, unless a grant in the same change set reuses it as the simple permission;
    - otherwise: rewrite P in place to the largest group (keeping its name, description, enabled and constraints)
      and create one new permission per other group.
 5. If P is shared with other principals: remove p from P, so the others keep exactly what they had, and create one
