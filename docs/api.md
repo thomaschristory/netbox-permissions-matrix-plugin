@@ -1,6 +1,6 @@
 # REST API
 
-Everything the matrix page does goes through three endpoints under `/api/plugins/permissions-matrix/`. Use them to
+Everything the matrix page does goes through the endpoints under `/api/plugins/permissions-matrix/`. Use them to
 script permission changes with the same safety rules as the page: plan first, review, then apply with the token the
 plan returned.
 
@@ -127,3 +127,33 @@ permissions created, changed and deleted (`op`, `id`, `name`).
 
 The whole apply runs in one database transaction, with the permission table locked against other writers, so it
 either applies completely or not at all.
+
+## `POST import/`
+
+Reads a file made by [export](export-import.md) and returns the cell changes that would make it true. Nothing is
+written: send the changes to `plan/` and `apply/`.
+
+```bash
+curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  "$NETBOX/api/plugins/permissions-matrix/import/" \
+  -d "$(jq -n --rawfile yaml matrix.yaml '{yaml: $yaml}')"
+```
+
+```json
+{
+  "changes": [
+    {"principal": {"type": "group", "id": 2}, "name": "Ops", "object_type": "dcim.site", "action": "view",
+     "granted": false}
+  ],
+  "warnings": [],
+  "errors": ["Unknown group 'Ghosts': its entries are skipped."]
+}
+```
+
+Each change has the shape `plan/` takes, plus `name` for display, which `plan/` ignores. Post the list as `changes`.
+
+| Status | Meaning |
+|--------|---------|
+| 200 | The file was read. `errors` lists skipped entries, `warnings` cells left unchanged. |
+| 400 | `yaml` is missing or empty, the text is not valid YAML, or it uses anchors and aliases. |
+| 403 | The token is not write-enabled, or you may not add, change or delete permissions. |

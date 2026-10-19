@@ -110,7 +110,7 @@ class ImportTest(ExportImportBase):
         doc = self.export(app="dcim")
         doc["grants"]["group:Ops"]["view"] = ["dcim.device"]
         changes = self.do_import(doc).json()["changes"]
-        body = {"changes": [{k: c[k] for k in ("principal", "object_type", "action", "granted")} for c in changes]}
+        body = {"changes": changes}  # as returned, "name" included
         response = self.client.post(reverse(PLAN), data=json.dumps(body), content_type="application/json")
         self.assertEqual(response.status_code, 200, response.content)
 

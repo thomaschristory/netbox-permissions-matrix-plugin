@@ -7,6 +7,9 @@ versioning: [SemVer](https://semver.org/).
 
 ### Added
 
+- Export the matrix as YAML (shown columns and rows, every action) and import such a file: within the file's scope
+  the changes are staged for the normal review, nothing is written until Apply. Groups, users and object types are
+  named, never numbered, so a file can move between NetBox instances. Also `POST import/` in the REST API.
 - Matrix page in Admin > Authentication, right below Permissions: action tabs, search, app filter, user
   columns, column picker, bulk toggles, gear panel, staged changes with review and apply.
 - Who can page per object type, and a Permissions Matrix tab on each group.
