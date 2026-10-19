@@ -24,6 +24,8 @@
     principal: root.dataset.urlPrincipal,
     plan: root.dataset.urlPlan,
     apply: root.dataset.urlApply,
+    import: root.dataset.urlImport,
+    export: root.dataset.urlExport,
     whoCan: root.dataset.urlWhoCan,
     permission: root.dataset.urlPermission,
   };
@@ -45,6 +47,7 @@
     staged: new Map(), // "<principal key>|<object type>|<action>" -> cell change
     edits: new Map(), // "<principal key>|<action>" -> gear panel edit
     plan: null,
+    importNotes: null, // warnings and errors from the last import, shown in the review
   };
 
   /* ---------- API ---------- */
@@ -90,7 +93,8 @@
 
   /* ---------- URL state ---------- */
 
-  function syncUrl() {
+  // The page's filters as query parameters: the page URL and the export link share them.
+  function filterParams() {
     const next = new URLSearchParams();
     if (mode === "matrix") {
       next.set("action", state.action);
@@ -105,7 +109,11 @@
     if (state.search) next.set("q", state.search);
     if (state.app) next.set("app", state.app);
     if (state.onlyGranted) next.set("granted", "1");
-    const query = next.toString();
+    return next;
+  }
+
+  function syncUrl() {
+    const query = filterParams().toString();
     window.history.replaceState(null, "", query ? `?${query}` : window.location.pathname);
   }
 
@@ -501,7 +509,7 @@
   function renderPlan(plan) {
     const body = $(".pm-review-body");
     const labels = { create: ["Create", "bg-green-lt"], update: ["Change", "bg-blue-lt"], delete: ["Delete", "bg-red-lt"] };
-    let html = "";
+    let html = importNotesHtml();
     if (plan.warnings.length) {
       html += `<div class="alert alert-warning"><ul class="m-0">${plan.warnings.map((w) => `<li>${esc(w)}</li>`).join("")}</ul></div>`;
     }
@@ -528,6 +536,40 @@
     $(".pm-apply").disabled = false;
   }
 
+  function importNotesHtml() {
+    const notes = state.importNotes;
+    if (!notes) return "";
+    const list = (items) => `<ul class="m-0">${items.map((i) => `<li>${esc(i)}</li>`).join("")}</ul>`;
+    let html = "";
+    if (notes.errors.length) html += `<div class="alert alert-danger"><strong>Import: skipped entries</strong>${list(notes.errors)}</div>`;
+    if (notes.warnings.length) html += `<div class="alert alert-warning"><strong>Import: left unchanged</strong>${list(notes.warnings)}</div>`;
+    return html;
+  }
+
+  async function importFile(file) {
+    let result;
+    try {
+      result = await api(urls.import, { yaml: await file.text() });
+    } catch (error) {
+      message(`Import failed: ${errorText(error)}`, "danger");
+      return;
+    }
+    for (const c of result.changes) {
+      const key = `${c.principal.type}:${c.principal.id}|${c.object_type}|${c.action}`;
+      state.staged.set(key, { principal: c.principal, object_type: c.object_type, action: c.action, granted: c.granted });
+    }
+    state.importNotes = result.errors.length || result.warnings.length ? result : null;
+    render();
+    if (state.staged.size || state.edits.size) {
+      message(`Imported ${file.name}: ${result.changes.length} cell change${result.changes.length === 1 ? "" : "s"} staged.`);
+      review();
+    } else {
+      message(`Imported ${file.name}: the permissions already match the file.`, "success");
+      $(".pm-message").insertAdjacentHTML("beforeend", importNotesHtml());
+      state.importNotes = null;
+    }
+  }
+
   async function review() {
     const dialog = $(".pm-review-dialog");
     $(".pm-review-body", dialog).innerHTML = '<p class="text-secondary">Planning...</p>';
@@ -549,6 +591,7 @@
       const result = await api(urls.apply, { ...changeSet(), token: state.plan.token });
       state.staged.clear();
       state.edits.clear();
+      state.importNotes = null;
       dialog.close();
       message(`Applied: ${result.written.length} permission${result.written.length === 1 ? "" : "s"} written.`, "success");
       await load();
@@ -617,6 +660,7 @@
     } else if (target.matches(".pm-discard")) {
       state.staged.clear();
       state.edits.clear();
+      state.importNotes = null;
       render();
     } else if (target.matches(".pm-review")) {
       review();
@@ -625,6 +669,7 @@
     } else if (target.matches(".pm-reload")) {
       state.staged.clear();
       state.edits.clear();
+      state.importNotes = null;
       $(".pm-review-dialog").close();
       load();
     } else if (target.matches(".pm-columns-button")) {
@@ -668,6 +713,25 @@
       state.includeUsers = users.checked;
       syncUrl();
       load();
+    });
+  }
+
+  const exportLink = $(".pm-export");
+  if (exportLink && urls.export) {
+    // The link follows the filters at click time; the "only rows with grants" switch does not narrow the export.
+    exportLink.addEventListener("click", () => {
+      const query = filterParams();
+      query.delete("action");
+      query.delete("granted");
+      exportLink.href = `${urls.export}?${query}`;
+    });
+  }
+  const importInput = $(".pm-import");
+  if (importInput) {
+    importInput.addEventListener("change", () => {
+      const file = importInput.files[0];
+      importInput.value = "";
+      if (file) importFile(file);
     });
   }
 

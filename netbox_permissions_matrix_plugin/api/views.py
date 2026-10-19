@@ -12,8 +12,9 @@ from rest_framework.views import APIView
 from .. import loader, service
 from ..applier import apply_plan
 from ..conf import get_setting
+from ..core import yaml_io
 from ..core.model import PrincipalRef
-from .serializers import ChangeSetSerializer
+from .serializers import ChangeSetSerializer, ImportSerializer
 
 
 class WriteEnabled(BasePermission):
@@ -135,3 +136,20 @@ class ApplyView(APIView):
         body = service.plan_json(snap, result, token)
         body["written"] = written
         return Response(body)
+
+
+class ImportView(APIView):
+    """Read an exported YAML file and return the cell changes that would make it true. Nothing is written."""
+
+    permission_classes = [IsAuthenticated, WriteEnabled]
+
+    @_guard
+    def post(self, request):
+        service.check_edit(request.user)
+        serializer = ImportSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            doc = yaml_io.load(serializer.validated_data["yaml"])
+        except ValueError as exc:
+            raise APIValidationError({"yaml": [str(exc)]}) from exc
+        return Response(service.import_for(request.user, doc))

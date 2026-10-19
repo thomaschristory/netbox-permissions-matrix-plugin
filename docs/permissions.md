@@ -22,7 +22,7 @@ limited by constraints: showing them a partial matrix would also make its change
 | `users.change_objectpermission` | Plans that change permissions (adding object types, removing a group, edits). |
 | `users.delete_objectpermission` | Plans that delete permissions (the last cell of a permission revoked). |
 
-A user with at least one of the three can stage changes and review them. Apply checks each operation against the
+A user with at least one of the three can stage changes, import a file and review them. Apply checks each operation against the
 user's permissions, constraints included, both before and after the write, as NetBox's own edit views do. If any
 operation is not allowed, the whole plan is rolled back and nothing is written.
 

@@ -7,4 +7,5 @@ urlpatterns = [
     path("principal/", views.PrincipalView.as_view(), name="principal"),
     path("plan/", views.PlanView.as_view(), name="plan"),
     path("apply/", views.ApplyView.as_view(), name="apply"),
+    path("import/", views.ImportView.as_view(), name="import"),
 ]

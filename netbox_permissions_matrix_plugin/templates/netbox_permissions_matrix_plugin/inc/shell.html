@@ -10,6 +10,8 @@
      data-url-principal="{{ api.principal }}"
      data-url-plan="{{ api.plan }}"
      data-url-apply="{{ api.apply }}"
+     data-url-import="{{ api.import }}"
+     {% if export_url %}data-url-export="{{ export_url }}"{% endif %}
      data-url-who-can="{{ who_can_url }}"
      data-url-permission="{% url 'users:objectpermission' pk=0 %}">
 
@@ -34,6 +36,15 @@
         <button type="button" class="btn btn-sm btn-outline-secondary pm-columns-button">
           <i class="mdi mdi-table-column" aria-hidden="true"></i> {% trans "Columns" %}
         </button>
+        <a href="{{ export_url }}" download class="btn btn-sm btn-outline-secondary pm-export" title="{% trans 'Download the shown columns and rows, every action, as YAML' %}">
+          <i class="mdi mdi-download" aria-hidden="true"></i> {% trans "Export" %}
+        </a>
+        {% if can_edit %}
+          <label class="btn btn-sm btn-outline-secondary m-0" title="{% trans 'Stage the changes a YAML export describes, for review' %}">
+            <i class="mdi mdi-upload" aria-hidden="true"></i> {% trans "Import" %}
+            <input type="file" class="pm-import" accept=".yaml,.yml,application/yaml,text/yaml" hidden>
+          </label>
+        {% endif %}
       {% endif %}
     </div>
   </div>
