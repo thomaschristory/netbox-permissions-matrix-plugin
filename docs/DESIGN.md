@@ -140,7 +140,11 @@ its classic page. Opening an entry gives a form for:
 
 A permission shared with other principals carries a warning in its form: the edit changes their access too.
 
-Edits made in the panel are staged per permission ID and go through the same review. Adding constraints to a simple
+Edits made in the panel are staged per permission ID and go through the same review. The planner applies them
+before the cell changes, to the permission as the panel showed it, so a permission disabled or constrained in a
+change set no longer takes that change set's grants. When the cell changes then delete the edited permission, the
+review warns that the edit is lost. The editor must be able to see every group and user the permission is assigned
+to. Adding constraints to a simple
 permission, or disabling it, makes it no longer simple: the plugin then stops reusing it, and the next grant of
 that action set for this principal creates a new simple permission. The review warns when an edit does this.
 Additional actions, groups and users are not offered in the panel, since they would break the naming by action
@@ -182,7 +186,7 @@ Grants are handled per (principal p, object type t), with A the actions ticked f
      `"{principal}_{actions}"`, for example `noc_vac`). A number is appended if the name is already taken.
 
 Several object types ending with the same action set share one simple permission. After all grants and revokes, a
-simple permission the change set emptied takes over a permission the same change set created for the same
+simple permission the change set emptied takes over a non-empty permission the same change set created for the same
 principal, when one action set contains the other, so ticking change on every object type of `noc_va` renames
 `noc_va` to `noc_vac` instead of deleting it and creating a new one.
 
@@ -203,7 +207,8 @@ For each permission P that covers the revoked cells of principal p (constrained 
    P itself becomes the permission for the first group that has none, renamed the same way; if nothing is left, P is
    deleted unless a grant reuses it.
 5. If P is assigned to p only and is not simple:
-   - remainder empty: delete P, unless a grant in the same change set reuses it as the simple permission;
+   - remainder empty: delete P. It is never reused for a grant: its constraints or disabled flag would carry over to
+     access ticked without them;
    - otherwise: rewrite P in place to the largest group (keeping its name, description, enabled and constraints)
      and create one new permission per other group.
 6. If P is shared with other principals: remove p from P, so the others keep exactly what they had, and create one
@@ -237,7 +242,7 @@ shown with its constraints, because whether it applies depends on the object.
 
 ## Group tab
 
-A "Permissions" tab on each group's page in NetBox (Admin > Groups > a group). It shows that group's matrix turned
+A "Permissions Matrix" tab on each group's page in NetBox (Admin > Authentication > Groups, then a group). It shows that group's matrix turned
 around: object types down the side, actions across the top, the same cell states, the same staging and review. It
 lets an operator review or edit one group without the full matrix.
 
@@ -264,8 +269,10 @@ Under `/api/plugins/permissions-matrix/`, authenticated with normal NetBox API t
 | Endpoint | Method | Purpose |
 |----------|--------|---------|
 | `matrix/` | GET | The matrix as JSON: actions, rows, columns, cell states, covering permission IDs. Filters: `action`, `group_id`, `user_id`, `app_label`, `include_users`. |
+| `principal/` | GET | One group's or user's cells for every action (the group tab). Parameters: `type`, `id`. |
 | `plan/` | POST | Dry run: takes a change set, returns the plan and a version token. |
 | `apply/` | POST | Takes a change set and the version token, applies it in one transaction, returns what was written. |
+| `import/` | POST | Takes a YAML export, returns the cell changes it implies, with warnings and errors, for the normal review. |
 
 A change set is a list of cell changes:
 

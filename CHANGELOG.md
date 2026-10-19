@@ -25,6 +25,9 @@ versioning: [SemVer](https://semver.org/).
   a permission left with no object types takes the new set and keeps its ID, renamed if it still has its generated
   name.
 - A disabled permission no longer receives new grants.
+- Permissions named in the 0.1.0 style (`NOC | view`) keep being used and are renamed to the new style
+  (`noc_va`) when their actions change. A `new_permission_name` set to the old default now gives `noc | va`-style
+  names: switch it to `{principal}_{actions}`, or another pattern with `{actions}`.
 - The gear panel no longer offers additional actions, groups or users; use the permission's NetBox page or the API.
 
 ## [0.1.0] - 2026-10-19

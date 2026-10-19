@@ -226,6 +226,22 @@ class PlanApplyTest(APITestBase):
     def test_edit_needs_an_action_or_a_permission_id(self):
         edit = {"principal": {"type": "group", "id": self.noc.pk}, "description": "x"}
         self.assertEqual(self.plan([], [edit]).status_code, 400)
+        both = {**edit, "action": "view", "perm_id": self.shared.pk}
+        self.assertEqual(self.plan([], [both]).status_code, 400)
+
+    def test_edit_of_an_unknown_permission_is_refused(self):
+        edit = {"principal": {"type": "group", "id": self.noc.pk}, "perm_id": 999999, "description": "x"}
+        response = self.plan([], [edit])
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("No such permission", str(response.json()))
+
+    def test_edit_of_a_permission_shared_with_hidden_groups_is_refused(self):
+        # The editor may see NOC but not Ops; NOC-RW is assigned to both.
+        ObjectPermission.objects.filter(name="users.view_group").update(constraints={"name": "NOC"})
+        edit = {"principal": {"type": "group", "id": self.noc.pk}, "perm_id": self.shared.pk, "enabled": False}
+        response = self.plan([], [edit])
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("cannot see", str(response.json()))
 
     def test_edit_of_a_permission_of_someone_else_is_left_out(self):
         other = make_perm("ops_v", ["view"], ["dcim.site"], groups=[self.ops])

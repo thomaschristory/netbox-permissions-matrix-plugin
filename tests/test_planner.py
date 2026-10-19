@@ -412,3 +412,33 @@ def test_edit_by_id_of_someone_elses_permission_is_left_out():
     result = plan(snap, [], [PermEdit(NOC, perm_id=4, description="x")])
     assert result.empty
     assert any("not assigned to NOC" in w for w in result.warnings)
+
+
+# Emptied permissions that must not take over a grant
+
+
+def test_emptied_constrained_permission_does_not_take_over_a_grant():
+    snap = snapshot(perm(5, "noc-paris", ["view"], ["dcim.device"], NOC, constraints={"name__startswith": "p"}))
+    ops = plan(snap, [revoke(NOC, "dcim.device", "view"), grant(NOC, "dcim.site", "view")]).operations
+    assert [(o.op, o.key) for o in ops] == [("delete", "5"), ("create", "new-1")]
+    assert ops[1].after.constraints is None
+    assert ops[1].after.object_types == {"dcim.site"}
+
+
+def test_emptied_disabled_permission_does_not_take_over_a_grant():
+    snap = snapshot(perm(5, "noc_v", ["view"], ["dcim.device"], NOC, enabled=False))
+    ops = plan(snap, [revoke(NOC, "dcim.device", "view"), grant(NOC, "dcim.site", "view")]).operations
+    assert [o.op for o in ops] == ["delete", "create"]
+    assert ops[1].after.enabled is True
+
+
+def test_a_name_from_0_1_0_is_renamed_when_the_actions_change():
+    snap = snapshot(perm(1, "NOC | view", ["view"], ["dcim.device"], NOC))
+    (update,) = plan(snap, [grant(NOC, "dcim.device", "add")]).operations
+    assert (update.key, update.after.name, update.after.actions) == ("1", "noc_va", ("view", "add"))
+
+
+def test_disabling_a_simple_permission_warns():
+    snap = snapshot(perm(4, "noc_va", ["view", "add"], ["dcim.device"], NOC))
+    result = plan(snap, [], [PermEdit(NOC, perm_id=4, enabled=False)])
+    assert any(w.startswith("Once disabled, noc_va is no longer simple") for w in result.warnings)

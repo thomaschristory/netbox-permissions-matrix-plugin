@@ -50,8 +50,8 @@ class PermEditSerializer(serializers.Serializer):
 
     def to_internal_value(self, data):
         value = super().to_internal_value(data)
-        if "action" not in value and "perm_id" not in value:
-            raise serializers.ValidationError("Give an action or a perm_id.")
+        if ("action" in value) == ("perm_id" in value):
+            raise serializers.ValidationError("Give either an action or a perm_id.")
         return PermEdit(
             principal=value["principal"],
             action=value.get("action", ""),

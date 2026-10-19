@@ -46,7 +46,7 @@
     collapsed: new Set(),
     data: null,
     staged: new Map(), // "<principal key>|<object type>|<action>" -> cell change
-    edits: new Map(), // "<principal key>|<action>" -> gear panel edit
+    edits: new Map(), // "<principal key>|#<permission ID>" -> gear panel edit
     plan: null,
     importNotes: null, // warnings and errors from the last import, shown in the review
   };

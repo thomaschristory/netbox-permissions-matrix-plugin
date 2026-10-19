@@ -36,9 +36,15 @@ permission setups do not fit in a grid of chips. This page lists what to keep in
 
 - Actions typed into "Additional actions" on the classic form show up as their own chips (and tabs, with `show_action_tabs`). NetBox does not
   say which models they apply to, so every row is enabled for them.
-- Custom actions other than render_config and sync use their first letter in names and chips, so two of them can
-  share a letter. The chip's tooltip names the action; permission names stay unique by getting a number.
 - An action name is at most 30 characters, lower case letters, digits and underscores, as in NetBox.
+
+## Names
+
+- Permission names come from the group name or username in lower case, with other characters turned into `_`. Two
+  groups called `NOC` and `noc` (or `N.O.C`) both give `noc_...`; the second gets a number (`noc_v 2`). Rename one
+  of them in the gear panel if that is confusing.
+- Custom actions other than render_config and sync use their first letter, so `run` and `render_config` both give
+  `r`, and their permissions are told apart by a number.
 
 ## Scale
 

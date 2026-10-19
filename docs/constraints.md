@@ -20,7 +20,8 @@ filter names of the REST API or the list views, although many look the same.
 - **A list of objects**: any of them may match (OR). `[{"site__slug": "paris"}, {"site__slug": "lyon"}]` is objects
   at Paris or at Lyon.
 - **`$user`** stands for the user making the request. `{"user": "$user"}` on tokens means "the user's own tokens".
-- **No constraints** (empty, `null`, `{}` or `[]`) means every object.
+- **No constraints** (empty, `null`, `{}` or `[]`) means every object. So does a list with an empty object in it,
+  such as `[{}, {"site__slug": "paris"}]`: one of its sets matches everything.
 
 The same constraint applies to **every object type and every action** of its permission. A permission granting view
 and change on Device and Rack with `{"site__slug": "paris"}` gives view and change on Paris devices and Paris racks.
@@ -29,6 +30,9 @@ So every object type in a constrained permission must have the fields the constr
 
 When several permissions cover the same cell, NetBox combines them with OR: one unconstrained permission is enough
 for full access, whatever constraints the others carry.
+
+For add and change, NetBox also checks the object as it will be saved: a user allowed to change Paris devices only
+cannot move a device to Lyon.
 
 ## How the matrix shows them
 
@@ -84,7 +88,9 @@ To let NOC change devices at Paris only, while NOC has full change access elsewh
 2. If it covers more than Device, untick change on Device in the matrix and apply, then create a dedicated
    permission on NetBox's permission page (**Admin > Authentication > Permissions**: Device, the change action, the
    NOC group and the constraint). NOC keeps full change access on everything else through `noc_vc`.
-3. If it covers only Device, set the constraint on it in the gear panel.
+3. If it covers only Device, setting the constraint on it in the gear panel also limits every other action in that
+   permission: with `noc_vc`, NOC could then only view Paris devices too. To keep view on every device, follow step 2
+   instead: unticking change moves Device to `noc_v`, and the dedicated permission adds change at Paris.
 
 The matrix does not split a permission to isolate one object type: a constraint always covers the whole permission.
 
@@ -107,7 +113,12 @@ filled to granted.
 
 - Ticking a chip never adds a constraint. Ticking a half-filled chip adds an **unconstrained** grant beside the
   constrained one, so the chip becomes granted; the constrained permission is left as it is.
-- Unticking removes the cell from every permission that covers it, constrained or not. When that permission keeps
-  other cells, the parts kept are split into new permissions that copy its constraints, so nothing gains access.
+- Unticking removes the cell from every permission that covers it, constrained or not. A constrained permission held
+  by the group or user alone is reduced to what it keeps; when the rest cannot fit in one permission (object types
+  keep different actions), the extra parts become new permissions that copy its constraints. A shared one loses the
+  group or user, who gets new permissions, with the same constraints, for what they keep. Nobody gains access.
+- The **all** and letter toggles on rows, columns and app sections treat a half-filled chip as not granted: the
+  first press adds full access over it, and a second press revokes everything, the constrained permission included.
+  Click chips one by one where constrained access must stay.
 - An [import](export-import.md) never creates or changes constraints: constrained cells in the file are reported,
   not applied.

@@ -123,6 +123,17 @@ def _generated_name(work: _Work, ref: PrincipalRef, actions: Iterable[str], temp
     return template.format(principal=slug(work.snap.name_of(ref)), actions=letters, action=letters)
 
 
+LEGACY_NAME_TEMPLATE = "{principal} | {action}"  # the default up to 0.1.0, one action per permission
+
+
+def _has_generated_name(work: _Work, ref: PrincipalRef, perm: Perm, template: str) -> bool:
+    """Whether the permission still has a name the plugin gave it, with or without a number: then it may be renamed."""
+    names = [_generated_name(work, ref, perm.actions, template)]
+    if len(perm.actions) == 1:
+        names.append(LEGACY_NAME_TEMPLATE.format(principal=work.snap.name_of(ref), action=perm.actions[0]))
+    return any(re.fullmatch(rf"{re.escape(n)}( \d+)?", perm.name) for n in names)
+
+
 def _place(
     work: _Work,
     ref: PrincipalRef,
@@ -146,8 +157,7 @@ def _place(
     if reuse is not None:
         perm = work.perms[reuse]
         name = perm.name
-        generated = _generated_name(work, ref, perm.actions, template)
-        if re.fullmatch(rf"{re.escape(generated)}( \d+)?", name):
+        if _has_generated_name(work, ref, perm, template):
             # Still the name the plugin gave it: rename it after its new actions.
             work.names.discard(name)
             name = work.unique_name(_generated_name(work, ref, actions, template))
@@ -244,17 +254,23 @@ def _drop_emptied(work: _Work, template: str) -> None:
     actions contain the other's (view, add emptied while view, add, change was created): it keeps its ID instead.
     """
     for key in sorted(work.emptied, key=work.order):
-        perm = work.perms[key]
-        if perm.object_types:
+        perm = work.perms.get(key)
+        if perm is None or perm.object_types:
+            # Gone already (taken over by an earlier emptied permission), or filled again by a grant.
             continue
         refs = perm.principals()
         ref = next(iter(refs)) if len(refs) == 1 else None
+        # Only a simple permission may take over a grant: a constrained or disabled one would pass its constraints or
+        # its disabled flag on to access that was ticked without them.
+        simple = ref is not None and perm.is_simple(ref)
         created = next(
             (
                 k
                 for k in work.ordered_keys()
-                if k.startswith("new-")
-                and ref is not None
+                if simple
+                and k != key
+                and k.startswith("new-")
+                and work.perms[k].object_types
                 and work.perms[k].is_simple(ref)
                 and (set(work.perms[k].actions) <= set(perm.actions) or set(work.perms[k].actions) >= set(perm.actions))
             ),
@@ -265,7 +281,7 @@ def _drop_emptied(work: _Work, template: str) -> None:
             continue
         new = work.perms.pop(created)
         name = perm.name
-        if re.fullmatch(rf"{re.escape(_generated_name(work, ref, perm.actions, template))}( \d+)?", name):
+        if _has_generated_name(work, ref, perm, template):
             name = new.name
         work.replace(
             key,
@@ -336,9 +352,10 @@ def _edit(work: _Work, edit: PermEdit) -> None:
         return
     if edit.perm_id is not None:
         if perm.is_simple(edit.principal) and not after.is_simple(edit.principal):
+            why = "constrained" if after.constrained else "disabled" if not after.enabled else "shared"
             work.warnings.append(
-                f"With constraints or other assignees {after.name} is no longer simple: new grants of "
-                f"{', '.join(after.actions)} for {pname} will go into a new permission."
+                f"Once {why}, {after.name} is no longer simple: new grants of {', '.join(after.actions)} for {pname} "
+                "will go into a new permission."
             )
     elif not after.is_simple_for(edit.principal, edit.action):
         work.warnings.append(
@@ -369,6 +386,13 @@ def plan(
 ) -> Plan:
     work = _Work(snap)
     changes = _dedupe(changes)
+    edits = sorted(edits, key=lambda e: (e.principal, e.action, e.perm_id or 0))
+
+    # Edits of a permission by ID come first, on the permission as the panel showed it: a permission disabled or
+    # constrained here is then no longer simple, so grants in the same change set go elsewhere.
+    for edit in edits:
+        if edit.perm_id is not None:
+            _edit(work, edit)
 
     revokes: dict[PrincipalRef, set[tuple[str, str]]] = defaultdict(set)
     for change in changes:
@@ -383,8 +407,15 @@ def plan(
     for ref, ot in sorted(grants):
         _grant(work, ref, ot, grants[(ref, ot)], name_template)
     _drop_emptied(work, name_template)
-    for edit in sorted(edits, key=lambda e: (e.principal, e.action, e.perm_id or 0)):
-        _edit(work, edit)
+    # Edits by action target the simple permission the grants above may have created.
+    for edit in edits:
+        if edit.perm_id is None:
+            _edit(work, edit)
+    for edit in edits:
+        if edit.perm_id is not None and edit.perm_id in snap.perms and str(edit.perm_id) not in work.perms:
+            work.warnings.append(
+                f"{snap.perms[edit.perm_id].name} is deleted by the cell changes in this change set; its edit is lost."
+            )
 
     operations = []
     for key in sorted(set(work.perms) | {str(pid) for pid in snap.perms}, key=work.order):

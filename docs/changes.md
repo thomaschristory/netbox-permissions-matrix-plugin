@@ -44,9 +44,12 @@ setting; see [Configuration](configuration.md).
 So ticking **Change** on Device for NOC, when NOC has `noc_va` on Device and Site, moves Device from `noc_va` to
 `noc_vac`. Site stays in `noc_va`. Ticking view and add on several object types fills one `noc_va`.
 
-When the object type was the last one in its old permission, that permission is not deleted. It takes the new
-actions instead and keeps its ID, description and other settings. If it still has the name the plugin gave it,
-it is renamed to match (`noc_va` becomes `noc_vac`); a name you set yourself is kept.
+When the object type was the last one in its old permission, and the principal has no simple permission for the
+new set yet, the old permission is not deleted. It takes the new actions instead and keeps its ID, description and
+other settings. If it still has a name the plugin gave it, it is renamed to match (`noc_va` becomes `noc_vac`); a
+name you set yourself is kept. Names from version 0.1.0 (`NOC | view`) count as given by the plugin, so they are
+renamed too. When a simple permission for the new set already exists, the object type joins it and the empty one is
+deleted.
 
 For a user column, only the user's own permissions count in step 1: a group the user belongs to may already grant
 the cell, but ticking it still gives the user a direct grant.
@@ -63,9 +66,9 @@ constraints. For each of those permissions:
   others move to the simple permission for the actions they keep: unticking add on Device moves Device from
   `noc_va` to `noc_v`. When no object type keeps all the actions, the permission takes the new set and is renamed,
   keeping its ID, as when ticking.
-- Otherwise, if the permission grants nothing else to this principal, and nobody else has it, it is deleted. When the same
-  change set ticks another cell that this permission would take (moving a grant from one object type to another),
-  the permission is kept and changed instead, so its name, ID and settings survive.
+- Otherwise, if the permission grants nothing else to this principal, and nobody else has it, it is deleted. It is
+  never reused for a grant in the same change set: its constraints or disabled flag would carry over to access
+  that was ticked without them.
 - If it grants other cells but belongs to this principal only, it is rewritten in place to keep the other cells.
   When the cells left cannot be expressed as one permission (because object types keep different actions), the
   plugin creates one more permission per extra combination.
