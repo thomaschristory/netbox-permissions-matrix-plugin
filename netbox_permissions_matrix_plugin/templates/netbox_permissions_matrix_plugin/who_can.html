@@ -1,0 +1,118 @@
+{% extends 'generic/_base.html' %}
+{% load static i18n %}
+
+{% block title %}{% blocktrans with name=row.label %}Who can: {{ name }}{% endblocktrans %}{% endblock %}
+
+{% block subtitle %}
+  <div class="text-secondary">{{ row.app_name }} &middot; <code>{{ row.object_type }}</code></div>
+{% endblock %}
+
+{% block head %}
+  <link rel="stylesheet" href="{% static 'netbox_permissions_matrix_plugin/matrix.css' %}?v={{ pm_version }}">
+{% endblock %}
+
+{% block controls %}
+  <div class="btn-list">
+    <a href="{{ matrix_url }}" class="btn btn-outline-secondary">
+      <i class="mdi mdi-table" aria-hidden="true"></i> {% trans "Back to the matrix" %}
+    </a>
+  </div>
+{% endblock %}
+
+{% block content %}
+  <div class="card">
+    <h2 class="card-header">{% trans "Groups and users with permissions" %}</h2>
+    {% if principals %}
+      <div class="table-responsive">
+        <table class="table table-hover pm-who-table">
+          <thead>
+            <tr>
+              <th scope="col">{% trans "Group or user" %}</th>
+              {% for action in actions %}<th scope="col" class="text-center">{{ action.label }}</th>{% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for principal in principals %}
+              <tr>
+                <th scope="row">
+                  {% if principal.type == "group" %}
+                    <i class="mdi mdi-account-group" aria-hidden="true"></i>
+                    <a href="{% url 'users:group' pk=principal.id %}">{{ principal.name }}</a>
+                  {% else %}
+                    <i class="mdi mdi-account" aria-hidden="true"></i>
+                    <a href="{% url 'users:user' pk=principal.id %}">{{ principal.name }}</a>
+                  {% endif %}
+                </th>
+                {% for action in actions %}
+                  <td class="text-center">
+                    {% for name, cell in principal.cells.items %}
+                      {% if name == action.name %}
+                        {% include 'netbox_permissions_matrix_plugin/inc/state.html' with state=cell.state cell_perms=cell.perms %}
+                      {% endif %}
+                    {% endfor %}
+                  </td>
+                {% endfor %}
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="card-body text-secondary">{% trans "No group or user has a permission on this object type." %}</div>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2 class="card-header">{% trans "Effective access" %}</h2>
+    <div class="card-body text-secondary small pb-0">
+      {% blocktrans trimmed %}
+        Every active user who can do something with this object type, directly or through a group.
+        Constrained access applies only to the objects matching the constraints.
+      {% endblocktrans %}
+    </div>
+    {% if effective %}
+      <div class="table-responsive">
+        <table class="table table-hover pm-who-table">
+          <thead>
+            <tr>
+              <th scope="col">{% trans "User" %}</th>
+              {% for action in actions %}<th scope="col">{{ action.label }}</th>{% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in effective %}
+              <tr>
+                <th scope="row"><a href="{% url 'users:user' pk=row.user.pk %}">{{ row.username }}</a></th>
+                {% for action in actions %}
+                  <td>
+                    {% for name, cell in row.actions.items %}
+                      {% if name == action.name %}
+                        {% include 'netbox_permissions_matrix_plugin/inc/state.html' with state=cell.state cell_perms=None %}
+                        <span class="small text-secondary">{{ cell.sources|join:", " }}</span>
+                        {% for c in cell.constraints %}<div><code class="small">{{ c }}</code></div>{% endfor %}
+                      {% endif %}
+                    {% endfor %}
+                  </td>
+                {% endfor %}
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="card-body text-secondary">{% trans "No user has access through permissions." %}</div>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2 class="card-header">{% trans "Superusers" %}</h2>
+    <div class="card-body">
+      <p class="text-secondary small">{% trans "Superusers bypass permissions and can do everything." %}</p>
+      {% for su in superusers %}
+        <a href="{% url 'users:user' pk=su.pk %}" class="badge text-bg-secondary">{{ su.username }}</a>
+      {% empty %}
+        <span class="text-secondary">{% trans "None" %}</span>
+      {% endfor %}
+    </div>
+  </div>
+{% endblock %}

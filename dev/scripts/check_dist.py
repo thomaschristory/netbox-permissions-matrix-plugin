@@ -25,6 +25,10 @@ PACKAGE_FILE = re.compile(rf"^{PACKAGE}/(?:[a-z_]+/)*[a-z0-9_]+\.(?:py|html|js|c
 REQUIRED = {
     f"{PACKAGE}/__init__.py",
     f"{PACKAGE}/version.py",
+    f"{PACKAGE}/api/urls.py",
+    f"{PACKAGE}/static/{PACKAGE}/matrix.js",
+    f"{PACKAGE}/static/{PACKAGE}/matrix.css",
+    f"{PACKAGE}/templates/{PACKAGE}/matrix.html",
 }
 SDIST_EXTRA = {"README.md", "CHANGELOG.md", "LICENSE", "pyproject.toml", "PKG-INFO", ".gitignore"}
 RELATIVE_LINK = re.compile(r"\]\((?!https?://|#)[^)]+\)")

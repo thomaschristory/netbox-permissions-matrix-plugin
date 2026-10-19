@@ -1,0 +1,120 @@
+from django.urls import reverse
+from utilities.testing import TestCase
+
+from .fixtures import groups, make_perm
+
+MATRIX = "plugins:netbox_permissions_matrix_plugin:matrix"
+VIEW = ("users.view_objectpermission", "users.view_group", "users.view_user")
+
+
+class MatrixPageTest(TestCase):
+    def setUp(self):
+        super().setUp()
+        (self.noc,) = groups("NOC")
+        make_perm("NOC-RW", ["view", "change"], ["dcim.device"], groups=[self.noc])
+
+    def test_anonymous_is_sent_to_login(self):
+        self.client.logout()
+        response = self.client.get(reverse(MATRIX))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("login", response["Location"])
+
+    def test_needs_view_permission(self):
+        self.assertEqual(self.client.get(reverse(MATRIX)).status_code, 403)
+
+    def test_read_only_page(self):
+        self.add_permissions(*VIEW)
+        response = self.client.get(reverse(MATRIX), {"action": "change"})
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode()
+        self.assertIn('data-can-edit="false"', html)
+        self.assertIn('data-action="change"', html)
+        self.assertIn(reverse("plugins-api:netbox_permissions_matrix_plugin-api:matrix"), html)
+        self.assertIn("netbox_permissions_matrix_plugin/matrix.js", html)
+        self.assertIn("Permissions Matrix", html)
+
+    def test_editable_page(self):
+        self.add_permissions(*VIEW, "users.change_objectpermission")
+        html = self.client.get(reverse(MATRIX)).content.decode()
+        self.assertIn('data-can-edit="true"', html)
+        self.assertIn(reverse("plugins-api:netbox_permissions_matrix_plugin-api:apply"), html)
+
+    def test_constrained_view_permission_gets_an_explanation(self):
+        self.add_permissions(*VIEW)
+        from users.models import ObjectPermission
+
+        perm = ObjectPermission.objects.get(name="users.view_objectpermission")
+        perm.constraints = {"name": "NOC-RW"}
+        perm.save()
+        response = self.client.get(reverse(MATRIX))
+        self.assertEqual(response.status_code, 403)
+
+
+class WhoCanPageTest(TestCase):
+    def setUp(self):
+        super().setUp()
+        self.add_permissions(*VIEW)
+        self.noc, self.ops = groups("NOC", "Ops")
+        from .fixtures import user
+
+        self.alice = user("alice", self.noc)
+        self.bob = user("bob", self.ops)
+        self.dave = user("dave")
+        self.root = user("root")
+        self.root.is_superuser = True
+        self.root.save()
+        make_perm("NOC-RW", ["view", "change"], ["ipam.prefix"], groups=[self.noc])
+        make_perm("Ops paris", ["view"], ["ipam.prefix"], groups=[self.ops], constraints={"site__slug": "paris"})
+        make_perm("dave direct", ["delete"], ["ipam.prefix"], users=[self.dave])
+        make_perm("unrelated", ["view"], ["dcim.site"], groups=[self.ops])
+
+    def get(self, ot="ipam.prefix"):
+        return self.client.get(reverse("plugins:netbox_permissions_matrix_plugin:who_can", args=[ot]))
+
+    def test_principals_and_effective_users(self):
+        response = self.get()
+        self.assertEqual(response.status_code, 200)
+        ctx = response.context
+        self.assertEqual([p["name"] for p in ctx["principals"]], ["NOC", "Ops", "dave"])
+        noc = ctx["principals"][0]
+        self.assertEqual(noc["cells"]["change"]["state"], "granted")
+        self.assertEqual(ctx["principals"][1]["cells"]["view"]["state"], "constrained")
+        effective = {row["username"]: row for row in ctx["effective"]}
+        self.assertEqual(set(effective), {"alice", "bob", "dave"})
+        self.assertEqual(effective["alice"]["actions"]["change"]["sources"], ["NOC"])
+        self.assertEqual(effective["dave"]["actions"]["delete"]["sources"], ["direct"])
+        self.assertIn("root", [u.username for u in ctx["superusers"]])
+
+    def test_unknown_object_type_is_404(self):
+        self.assertEqual(self.get("dcim.nothing").status_code, 404)
+        self.assertEqual(self.get("core.objecttype").status_code, 404)
+
+    def test_superusers_and_users_hidden_without_view_user(self):
+        from users.models import ObjectPermission
+
+        ObjectPermission.objects.filter(name="users.view_user").delete()
+        ctx = self.get().context
+        self.assertEqual(list(ctx["superusers"]), [])
+        self.assertEqual(ctx["effective"], [])
+        self.assertEqual([p["name"] for p in ctx["principals"]], ["NOC", "Ops"])
+
+
+class GroupTabTest(TestCase):
+    def setUp(self):
+        super().setUp()
+        (self.noc,) = groups("NOC")
+
+    def url(self):
+        return reverse("users:group_permissions_matrix", args=[self.noc.pk])
+
+    def test_tab_renders_for_viewers(self):
+        self.add_permissions(*VIEW)
+        response = self.client.get(self.url())
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode()
+        self.assertIn('data-mode="principal"', html)
+        self.assertIn(f'data-principal="group:{self.noc.pk}"', html)
+
+    def test_tab_needs_permission_view(self):
+        self.add_permissions("users.view_group")
+        self.assertEqual(self.client.get(self.url()).status_code, 403)

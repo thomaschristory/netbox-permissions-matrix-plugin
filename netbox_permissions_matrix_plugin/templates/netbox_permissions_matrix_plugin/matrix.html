@@ -1,0 +1,32 @@
+{% extends 'generic/_base.html' %}
+{% load static i18n %}
+
+{% block title %}{% trans "Permissions Matrix" %}{% endblock %}
+
+{% block subtitle %}
+  <div class="text-secondary">
+    {% blocktrans trimmed %}
+      NetBox's own permissions, by object type and group. Changes are reviewed before anything is written.
+    {% endblocktrans %}
+  </div>
+{% endblock %}
+
+{% block head %}
+  <link rel="stylesheet" href="{% static 'netbox_permissions_matrix_plugin/matrix.css' %}?v={{ pm_version }}">
+{% endblock %}
+
+{% block controls %}
+  <div class="btn-list">
+    <a href="{% url 'users:objectpermission_list' %}" class="btn btn-outline-secondary">
+      <i class="mdi mdi-format-list-bulleted" aria-hidden="true"></i> {% trans "Permission list" %}
+    </a>
+  </div>
+{% endblock %}
+
+{% block content %}
+  {% include 'netbox_permissions_matrix_plugin/inc/shell.html' with mode="matrix" %}
+{% endblock %}
+
+{% block javascript %}
+  <script src="{% static 'netbox_permissions_matrix_plugin/matrix.js' %}?v={{ pm_version }}"></script>
+{% endblock %}

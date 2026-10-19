@@ -17,10 +17,7 @@ class CellState(enum.StrEnum):
 
 def covering(snap: Snapshot, ref: PrincipalRef, object_type: str, action: str) -> list[Perm]:
     """Permissions assigned directly to the principal that list the object type and the action, by ID."""
-    return sorted(
-        (p for p in snap.perms.values() if p.covers(ref, object_type, action)),
-        key=lambda p: p.id or 0,
-    )
+    return [snap.perms[pid] for pid in snap.covering_ids(ref, object_type, action)]
 
 
 def state_of(perms: Iterable[Perm]) -> CellState:

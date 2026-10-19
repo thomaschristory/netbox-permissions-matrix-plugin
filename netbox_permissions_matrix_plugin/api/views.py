@@ -1,6 +1,8 @@
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
+from django.http import Http404
 from rest_framework import status
+from rest_framework.exceptions import NotFound
 from rest_framework.exceptions import PermissionDenied as APIPermissionDenied
 from rest_framework.exceptions import ValidationError as APIValidationError
 from rest_framework.permissions import SAFE_METHODS, BasePermission, IsAuthenticated
@@ -10,6 +12,7 @@ from rest_framework.views import APIView
 from .. import loader, service
 from ..applier import apply_plan
 from ..conf import get_setting
+from ..core.model import PrincipalRef
 from .serializers import ChangeSetSerializer
 
 
@@ -76,6 +79,23 @@ class MatrixView(APIView):
             app_labels=tuple(params.getlist("app_label")),
         )
         return Response(service.matrix_payload(request.user, query))
+
+
+class PrincipalView(APIView):
+    """One group's or user's cells for every action."""
+
+    permission_classes = [IsAuthenticated]
+
+    @_guard
+    def get(self, request):
+        kind = request.query_params.get("type")
+        if kind not in ("group", "user"):
+            raise APIValidationError({"type": ["Must be group or user."]})
+        (pk,) = _ints([request.query_params.get("id", "")]) or (0,)
+        try:
+            return Response(service.principal_payload(request.user, PrincipalRef(kind, pk)))
+        except Http404 as exc:
+            raise NotFound(str(exc)) from exc
 
 
 class PlanView(APIView):

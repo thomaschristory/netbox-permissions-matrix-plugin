@@ -1,0 +1,20 @@
+{% extends 'generic/object.html' %}
+{% load static i18n %}
+
+{% block head %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'netbox_permissions_matrix_plugin/matrix.css' %}?v={{ pm_version }}">
+{% endblock %}
+
+{% block content %}
+  <div class="row mb-3">
+    <div class="col">
+      {% include 'netbox_permissions_matrix_plugin/inc/shell.html' with mode="principal" %}
+    </div>
+  </div>
+{% endblock %}
+
+{% block javascript %}
+  {{ block.super }}
+  <script src="{% static 'netbox_permissions_matrix_plugin/matrix.js' %}?v={{ pm_version }}"></script>
+{% endblock %}
