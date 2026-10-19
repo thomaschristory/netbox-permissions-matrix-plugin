@@ -306,11 +306,11 @@
     let html = `<table class="pm-table"><thead><tr><th scope="col" class="pm-corner">${mode === "matrix" ? "Object type" : "Object type / action"}</th>${cols.map(headerHtml).join("")}</tr></thead><tbody>`;
     for (const [label, app] of apps) {
       const collapsed = state.collapsed.has(label);
-      html += `<tr class="pm-app-row"><th scope="rowgroup" class="pm-rowhead"><button type="button" class="btn btn-sm btn-ghost-secondary pm-app-toggle" data-app="${esc(label)}" aria-expanded="${!collapsed}"><i class="mdi ${collapsed ? "mdi-chevron-right" : "mdi-chevron-down"}" aria-hidden="true"></i> ${esc(app.name)}</button>${allButton("pm-all-app", `data-app="${esc(label)}"`, "Toggle every row of this app")}</th><td class="pm-app-fill" colspan="${cols.length}"></td></tr>`;
+      html += `<tr class="pm-app-row"><th scope="rowgroup" class="pm-rowhead"><div class="pm-rowline"><button type="button" class="btn btn-sm btn-ghost-secondary pm-app-toggle" data-app="${esc(label)}" aria-expanded="${!collapsed}"><i class="mdi ${collapsed ? "mdi-chevron-right" : "mdi-chevron-down"}" aria-hidden="true"></i> ${esc(app.name)}</button>${allButton("pm-all-app", `data-app="${esc(label)}"`, "Toggle every row of this app")}</div></th><td class="pm-app-fill" colspan="${cols.length}"></td></tr>`;
       if (collapsed) continue;
       for (const row of app.rows) {
         const link = urls.whoCan.replace("__ot__", encodeURIComponent(row.object_type));
-        html += `<tr><th scope="row" class="pm-rowhead"><a href="${esc(link)}" title="Who can: ${esc(row.object_type)}">${esc(row.label)}</a>${allButton("pm-all-row", `data-ot="${esc(row.object_type)}"`, "Toggle the whole row", row)}</th>${cols.map((c) => cellHtml(row, c)).join("")}</tr>`;
+        html += `<tr><th scope="row" class="pm-rowhead"><div class="pm-rowline"><a href="${esc(link)}" title="Who can: ${esc(row.object_type)}">${esc(row.label)}</a>${allButton("pm-all-row", `data-ot="${esc(row.object_type)}"`, "Toggle the whole row", row)}</div></th>${cols.map((c) => cellHtml(row, c)).join("")}</tr>`;
       }
     }
     if (!rows.length) html += `<tr><td class="p-4 text-secondary" colspan="${cols.length + 1}">No object type matches the filters.</td></tr>`;

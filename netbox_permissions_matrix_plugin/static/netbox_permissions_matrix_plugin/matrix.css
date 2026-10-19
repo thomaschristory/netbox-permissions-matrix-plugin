@@ -50,8 +50,12 @@
   margin-bottom: 0.5rem;
 }
 
+/* The card is as wide as the table, up to the page width; beyond that it scrolls. A few columns stay compact on the
+   left instead of stretching the object type column. */
 .pm-scroll {
   overflow: auto;
+  width: fit-content;
+  max-width: 100%;
   max-height: calc(100vh - 16rem);
   min-height: 12rem;
 }
@@ -60,7 +64,6 @@
   border-collapse: separate;
   border-spacing: 0;
   width: max-content;
-  min-width: 100%;
 }
 
 .pm-table th,
@@ -83,12 +86,24 @@
   left: 0;
   z-index: 1;
   min-width: 14rem;
-  max-width: 22rem;
+  max-width: 32rem;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   border-right: 1px solid var(--pm-border);
   font-weight: normal;
+}
+
+/* Row header on one line: the name (cut with an ellipsis if needed) on the left, the toggles on the right. */
+.pm-rowline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.pm-rowline > :first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .pm-table thead .pm-corner {
@@ -122,23 +137,12 @@
   font-weight: 600;
 }
 
-.pm-rowhead .pm-all {
-  float: right;
-  margin-left: 0.25rem;
-}
-
-/* All-actions grid: "all" then one letter per action, on the right of the row name. */
+/* All-actions grid: "all" then one letter per action. */
 .pm-rowhead .pm-rowctl {
-  float: right;
   display: inline-flex;
   align-items: center;
   gap: 0.15rem;
-  margin-left: 0.5rem;
-}
-
-.pm-rowctl .pm-all {
-  float: none;
-  margin-left: 0;
+  flex-shrink: 0;
 }
 
 .pm-all {
