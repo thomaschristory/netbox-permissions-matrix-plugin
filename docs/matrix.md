@@ -2,6 +2,8 @@
 
 Open **Admin > Authentication > Permissions Matrix**.
 
+![The matrix on the Change tab, with user columns and only rows with grants](img/matrix.png)
+
 ```
 [View] [Add] [Change] [Delete] [Sync] ...        [search] [apps] [ ] Only rows with grants  [ ] Users  [Columns]
 
@@ -86,6 +88,8 @@ The gear next to a column name opens a panel for that group or user and the acti
   first.
 - Every **other permission** that grants the action to the principal, read-only, with a link to edit it on the
   classic page.
+
+![The gear panel for NOC on the Change tab](img/gear-panel.png)
 
 Panel changes are staged and reviewed like cell changes. Adding constraints, actions, groups or users to the simple
 permission makes it no longer simple: new grants then go into a new permission. The panel warns before staging such

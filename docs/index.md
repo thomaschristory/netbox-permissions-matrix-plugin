@@ -19,10 +19,14 @@ edits NetBox's own permissions, with a review of every change before it is writt
   groups splits that permission so the others keep exactly what they had.
 - Shows every permission it will create, change or delete before writing anything, and writes everything in one
   transaction.
+- Exports the matrix as YAML and imports it back, here or on another NetBox, through the same review.
+
+![The matrix](img/matrix.png)
 
 ## Where to start
 
 - [Installation](installation.md)
+- [Quick start](quickstart.md)
 - [Configuration](configuration.md)
 - [Design](DESIGN.md), for how matrix changes map to native permissions
 
