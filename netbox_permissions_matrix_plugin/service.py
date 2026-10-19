@@ -242,5 +242,5 @@ def who_can(user, label: str) -> dict:
         "actions": actions,
         "principals": principals,
         "effective": effective,
-        "superusers": User.objects.filter(is_superuser=True, is_active=True).order_by("username"),
+        "superusers": User.objects.filter(pk__in=users, is_superuser=True, is_active=True).order_by("username"),
     }

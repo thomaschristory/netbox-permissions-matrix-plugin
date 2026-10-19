@@ -89,6 +89,15 @@ class WhoCanPageTest(TestCase):
         self.assertEqual(self.get("dcim.nothing").status_code, 404)
         self.assertEqual(self.get("core.objecttype").status_code, 404)
 
+    def test_superusers_and_users_hidden_without_view_user(self):
+        from users.models import ObjectPermission
+
+        ObjectPermission.objects.filter(name="users.view_user").delete()
+        ctx = self.get().context
+        self.assertEqual(list(ctx["superusers"]), [])
+        self.assertEqual(ctx["effective"], [])
+        self.assertEqual([p["name"] for p in ctx["principals"]], ["NOC", "Ops"])
+
 
 class GroupTabTest(TestCase):
     def setUp(self):
