@@ -325,7 +325,6 @@
   function stagedFor(action) {
     let n = 0;
     for (const change of state.staged.values()) if (change.action === action) n += 1;
-    for (const edit of state.edits.values()) if (edit.action === action) n += 1;
     return n;
   }
 
@@ -378,114 +377,62 @@
 
   /* ---------- Gear panel ---------- */
 
+  // The column's permissions, each with its own form: every permission of the principal in the all-actions grid, the
+  // ones granting the column's action otherwise. Edits are staged per permission ID.
+  const panelPerms = (col) => col.info.perms || [col.info.simple, ...col.info.others].filter(Boolean);
+  const editKey = (col, p) => `${col.principalKey}|#${p.id}`;
+
   function panelFor(col) {
     const dialog = $(".pm-panel");
-    if (allMode()) return overviewPanel(col, dialog);
-    const info = col.info || { simple: null, others: [] };
-    const key = `${col.principalKey}|${col.action}`;
-    const staged = state.edits.get(key) || {};
-    const simple = info.simple;
-    const pendingGrant = [...state.staged.values()].some(
-      (c) => c.granted && c.action === col.action && `${c.principal.type}:${c.principal.id}` === col.principalKey,
-    );
-    $("#pm-panel-title", dialog).textContent = `${col.principalName}: ${col.action}`;
-    let html = "";
-    if (simple || pendingGrant) {
-      const value = (field, fallback) => (field in staged ? staged[field] : fallback);
-      const groupOptions = mode === "matrix"
-        ? state.data.columns.filter((c) => c.type === "group" && c.key !== col.principalKey)
-        : [];
-      const userOptions = mode === "matrix"
-        ? state.data.columns.filter((c) => c.type === "user" && c.key !== col.principalKey)
-        : [];
-      const options = (list, chosen) =>
-        list.map((c) => `<option value="${c.id}"${(chosen || []).includes(c.id) ? " selected" : ""}>${esc(c.name)}</option>`).join("");
-      html += `<h3 class="h4">Simple permission</h3>`;
-      html += simple
-        ? `<p class="text-secondary small">New grants of <strong>${esc(col.action)}</strong> for ${esc(col.principalName)} go into <a href="${esc(permissionUrl(simple.id))}">${esc(simple.name)}</a>.</p>`
-        : `<p class="text-secondary small">This permission is created by your staged grants. You can name and describe it now.</p>`;
-      html += `
-        <div class="mb-2"><label class="form-label" for="pm-f-name">Name</label>
-          <input id="pm-f-name" class="form-control" maxlength="100" value="${esc(value("name", simple ? simple.name : ""))}" placeholder="${simple ? "" : "Default name from the new_permission_name setting"}"></div>
-        <div class="mb-2"><label class="form-label" for="pm-f-description">Description</label>
-          <input id="pm-f-description" class="form-control" maxlength="200" value="${esc(value("description", simple ? simple.description : ""))}"></div>
-        <div class="form-check form-switch mb-2"><input id="pm-f-enabled" class="form-check-input" type="checkbox"${value("enabled", simple ? simple.enabled : true) ? " checked" : ""}>
-          <label class="form-check-label" for="pm-f-enabled">Enabled</label></div>
-        <div class="mb-2"><label class="form-label" for="pm-f-constraints">Constraints</label>
-          <textarea id="pm-f-constraints" class="form-control font-monospace" rows="3" placeholder='{"site__slug": "paris"}'>${esc("constraints" in staged && staged.constraints !== null ? json(staged.constraints) : "")}</textarea>
-          <div class="form-text">An object, or a list of objects combined with OR. <code>$user</code> is the current user.</div></div>
-        <div class="mb-2"><label class="form-label" for="pm-f-actions">Additional actions</label>
-          <input id="pm-f-actions" class="form-control" value="${esc((staged.add_actions || []).join(", "))}" placeholder="change, delete"></div>`;
-      if (groupOptions.length) {
-        html += `<div class="mb-2"><label class="form-label" for="pm-f-groups">Also assign to groups</label><select id="pm-f-groups" class="form-select" multiple size="4">${options(groupOptions, staged.add_groups)}</select></div>`;
-      }
-      if (userOptions.length) {
-        html += `<div class="mb-2"><label class="form-label" for="pm-f-users">Also assign to users</label><select id="pm-f-users" class="form-select" multiple size="4">${options(userOptions, staged.add_users)}</select></div>`;
-      }
-      html += `<div class="alert alert-warning pm-panel-warning" hidden>Constraints, additional actions, groups or users make this permission no longer simple: new grants of ${esc(col.action)} for ${esc(col.principalName)} will then go into a new permission.</div>`;
-      html += `<div class="alert alert-danger pm-panel-error" hidden></div>`;
-    } else {
-      html += `<p class="text-secondary">${esc(col.principalName)} has no simple permission for <strong>${esc(col.action)}</strong> yet. Tick a cell in this column first; the permission it creates can then be edited here.</p>`;
-    }
-    html += `<h3 class="h4 mt-3">Other permissions granting ${esc(col.action)}</h3>`;
-    html += info.others.length
-      ? `<ul class="list-unstyled pm-others">${info.others.map(otherHtml).join("")}</ul>`
-      : `<p class="text-secondary small">None.</p>`;
-    $(".pm-panel-body", dialog).innerHTML = html;
-    const stage = $(".pm-panel-stage", dialog);
-    if (stage) stage.hidden = !(simple || pendingGrant);
-    dialog.dataset.col = col.key;
-    const warn = () => {
-      const warning = $(".pm-panel-warning", dialog);
-      if (!warning) return;
-      const groups = $("#pm-f-groups", dialog);
-      const users = $("#pm-f-users", dialog);
-      warning.hidden = !(
-        $("#pm-f-constraints", dialog).value.trim() ||
-        $("#pm-f-actions", dialog).value.trim() ||
-        (groups && groups.selectedOptions.length) ||
-        (users && users.selectedOptions.length)
-      );
-    };
-    $$("input, textarea, select", dialog).forEach((el) => el.addEventListener("input", warn));
-    warn();
-    dialog.showModal();
-  }
-
-  // The all-actions grid has no single permission per column: each permission the principal holds gets its own form.
-  function overviewPanel(col, dialog) {
-    const perms = col.info.perms || [];
-    $("#pm-panel-title", dialog).textContent = `${col.principalName}: permissions`;
+    const perms = panelPerms(col);
+    $("#pm-panel-title", dialog).textContent = col.action ? `${col.principalName}: ${col.action}` : `${col.principalName}: permissions`;
     const form = (p) => {
-      const staged = state.edits.get(`${col.principalKey}|#${p.id}`) || {};
+      const staged = state.edits.get(editKey(col, p)) || {};
       const value = (field, fallback) => (field in staged ? staged[field] : fallback);
       const constraints = value("constraints", p.constrained ? p.constraints : null);
-      const shared = p.principals.length > 1;
+      const id = (field) => `pm-p${p.id}-${field}`;
+      const shared = p.principals.length > 1
+        ? `<div class="alert alert-warning small p-2">Shared with ${esc(p.principals.map((x) => x.name).join(", "))}: edits here change their access too.</div>`
+        : "";
       return `<details class="pm-perm card mb-2" data-perm="${p.id}"${Object.keys(staged).length ? " open" : ""}>
-        <summary class="card-body p-2">${otherSummary(p)}</summary>
+        <summary class="card-body p-2">${permSummary(p)}</summary>
         <div class="card-body p-2 pt-0">
-          ${shared ? `<div class="alert alert-warning small p-2">Shared with ${esc(p.principals.map((x) => x.name).join(", "))}: edits here change their access too.</div>` : ""}
-          <div class="mb-2"><label class="form-label">Name</label><input class="form-control pm-p-name" maxlength="100" value="${esc(value("name", p.name))}"></div>
-          <div class="mb-2"><label class="form-label">Description</label><input class="form-control pm-p-description" maxlength="200" value="${esc(value("description", p.description))}"></div>
-          <div class="form-check form-switch mb-2"><input class="form-check-input pm-p-enabled" type="checkbox"${value("enabled", p.enabled) ? " checked" : ""}><label class="form-check-label">Enabled</label></div>
-          <div class="mb-2"><label class="form-label">Constraints</label>
-            <textarea class="form-control font-monospace pm-p-constraints" rows="3" placeholder='{"site__slug": "paris"}'>${esc(constraints ? JSON.stringify(constraints, null, 2) : "")}</textarea>
+          ${shared}
+          <div class="mb-2"><label class="form-label" for="${id("name")}">Name</label>
+            <input id="${id("name")}" class="form-control pm-p-name" maxlength="100" value="${esc(value("name", p.name))}"></div>
+          <div class="mb-2"><label class="form-label" for="${id("description")}">Description</label>
+            <input id="${id("description")}" class="form-control pm-p-description" maxlength="200" value="${esc(value("description", p.description))}"></div>
+          <div class="form-check form-switch mb-2"><input id="${id("enabled")}" class="form-check-input pm-p-enabled" type="checkbox"${value("enabled", p.enabled) ? " checked" : ""}>
+            <label class="form-check-label" for="${id("enabled")}">Enabled</label></div>
+          <div class="mb-2"><label class="form-label" for="${id("constraints")}">Constraints</label>
+            <textarea id="${id("constraints")}" class="form-control font-monospace pm-p-constraints" rows="3" placeholder='{"site__slug": "paris"}'>${esc(constraints ? JSON.stringify(constraints, null, 2) : "")}</textarea>
             <div class="form-text">Applies to every object type and action in this permission. An object, or a list of objects combined with OR; empty removes them. <code>$user</code> is the current user.</div></div>
         </div></details>`;
     };
-    $(".pm-panel-body", dialog).innerHTML = `<div class="alert alert-danger pm-panel-error" hidden></div>${perms.length ? perms.map(form).join("") : '<p class="text-secondary small">None yet: tick a chip first.</p>'}`;
+    $(".pm-panel-body", dialog).innerHTML = `<div class="alert alert-danger pm-panel-error" hidden></div>${perms.length ? perms.map(form).join("") : '<p class="text-secondary small">No permissions yet: tick a cell first.</p>'}`;
     const stage = $(".pm-panel-stage", dialog);
     if (stage) stage.hidden = !perms.length;
     dialog.dataset.col = col.key;
     dialog.showModal();
   }
 
-  // Stage one edit per changed permission form.
-  function stageOverview(col, dialog) {
+  function permSummary(p) {
+    return `<strong>${esc(p.name)}</strong> <a href="${esc(permissionUrl(p.id))}" target="_blank" rel="noopener" title="Open in NetBox"><i class="mdi mdi-open-in-new" aria-hidden="true"></i></a>${p.enabled ? "" : ' <span class="badge bg-secondary-lt">disabled</span>'}${p.constrained ? ' <span class="badge bg-warning-lt">constrained</span>' : ""}
+      <span class="small text-secondary">${esc(p.actions.join(", "))} on ${p.object_types.length} object type${p.object_types.length === 1 ? "" : "s"}</span>`;
+  }
+
+  function permissionUrl(id) {
+    return urls.permission.replace(/\/0\/$/, `/${id}/`);
+  }
+
+  // One edit per changed form; a form put back to how it was drops its staged edit.
+  function stagePanel() {
+    const dialog = $(".pm-panel");
+    const col = columns().find((c) => c.key === dialog.dataset.col);
     const errorBox = $(".pm-panel-error", dialog);
     const pending = [];
     for (const box of $$(".pm-perm", dialog)) {
-      const p = col.info.perms.find((x) => String(x.id) === box.dataset.perm);
+      const p = panelPerms(col).find((x) => String(x.id) === box.dataset.perm);
       const edit = { principal: col.principal, perm_id: p.id };
       const name = $(".pm-p-name", box).value.trim();
       const description = $(".pm-p-description", box).value;
@@ -506,71 +453,12 @@
         }
       }
       if (json(constraints) !== json(p.constrained ? p.constraints : null)) edit.constraints = constraints;
-      pending.push([`${col.principalKey}|#${p.id}`, edit]);
+      pending.push([editKey(col, p), edit]);
     }
     for (const [key, edit] of pending) {
       if (Object.keys(edit).length > 2) state.edits.set(key, edit);
       else state.edits.delete(key);
     }
-    dialog.close();
-    updateBar();
-  }
-
-  function otherSummary(p) {
-    return `<strong>${esc(p.name)}</strong>${p.enabled ? "" : ' <span class="badge bg-secondary-lt">disabled</span>'}${p.constrained ? ' <span class="badge bg-warning-lt">constrained</span>' : ""}
-      <span class="small text-secondary">${esc(p.actions.map(letter).join(""))} on ${p.object_types.length} object type${p.object_types.length === 1 ? "" : "s"}</span>`;
-  }
-
-  function otherHtml(p) {
-    const others = p.principals.map((x) => x.name).join(", ");
-    return `<li class="mb-2"><a href="${esc(permissionUrl(p.id))}">${esc(p.name)}</a>${p.enabled ? "" : ' <span class="badge bg-secondary-lt">disabled</span>'}${p.constrained ? ' <span class="badge bg-warning-lt">constrained</span>' : ""}
-      <div class="small text-secondary">${esc(p.actions.join(", "))} on ${p.object_types.length} object type${p.object_types.length === 1 ? "" : "s"}; assigned to ${esc(others)}</div>
-      ${p.constrained ? `<code class="small">${esc(json(p.constraints))}</code>` : ""}</li>`;
-  }
-
-  function permissionUrl(id) {
-    return urls.permission.replace(/\/0\/$/, `/${id}/`);
-  }
-
-  function stagePanel() {
-    const dialog = $(".pm-panel");
-    const col = columns().find((c) => c.key === dialog.dataset.col);
-    if (allMode()) return stageOverview(col, dialog);
-    const simple = col.info && col.info.simple;
-    const errorBox = $(".pm-panel-error", dialog);
-    const edit = { principal: col.principal, action: col.action };
-    const name = $("#pm-f-name", dialog).value.trim();
-    const description = $("#pm-f-description", dialog).value;
-    const enabledValue = $("#pm-f-enabled", dialog).checked;
-    const constraintsText = $("#pm-f-constraints", dialog).value.trim();
-    if (name && name !== (simple ? simple.name : "")) edit.name = name;
-    if (description !== (simple ? simple.description : "")) edit.description = description;
-    if (enabledValue !== (simple ? simple.enabled : true)) edit.enabled = enabledValue;
-    if (constraintsText) {
-      try {
-        edit.constraints = JSON.parse(constraintsText);
-      } catch (error) {
-        errorBox.textContent = `Constraints are not valid JSON: ${error.message}`;
-        errorBox.hidden = false;
-        return;
-      }
-    }
-    const actions = $("#pm-f-actions", dialog).value.split(/[\s,]+/).filter(Boolean);
-    if (actions.some((a) => !/^[a-z_][a-z0-9_]{0,29}$/.test(a))) {
-      errorBox.textContent = "Actions are lowercase names such as change or render_config.";
-      errorBox.hidden = false;
-      return;
-    }
-    if (actions.length) edit.add_actions = actions;
-    const picked = (id) => {
-      const select = $(id, dialog);
-      return select ? Array.from(select.selectedOptions, (o) => Number(o.value)) : [];
-    };
-    if (picked("#pm-f-groups").length) edit.add_groups = picked("#pm-f-groups");
-    if (picked("#pm-f-users").length) edit.add_users = picked("#pm-f-users");
-    const key = `${col.principalKey}|${col.action}`;
-    if (Object.keys(edit).length > 2) state.edits.set(key, edit);
-    else state.edits.delete(key);
     dialog.close();
     updateBar();
   }

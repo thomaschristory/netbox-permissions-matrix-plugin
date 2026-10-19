@@ -27,14 +27,17 @@ permission setups do not fit in a grid of checkboxes. This page lists what to ke
 
 - A constrained cell says "some objects". Which ones depends on each object, so the matrix cannot tick or untick
   them partly. Hover the cell to read the constraints.
-- Ticking a cell never adds constraints. Constraints are edited on the principal's simple permission in the
-  [gear panel](matrix.md#the-gear-panel), or on the classic permission page for any other permission.
+- Ticking a cell never adds constraints. Constraints are edited per permission in the
+  [gear panel](matrix.md#the-gear-panel), or on the classic permission page. A constraint covers every object type
+  and action of its permission; the matrix cannot constrain one cell on its own.
 - An [import](export-import.md) never creates or changes constraints.
 
 ## Actions
 
-- Actions typed into "Additional actions" on the classic form show up as their own tabs. NetBox does not say which
-  models they apply to, so every row is enabled on those tabs.
+- Actions typed into "Additional actions" on the classic form show up as their own tabs and chips. NetBox does not
+  say which models they apply to, so every row is enabled for them.
+- Custom actions other than render_config and sync use their first letter in names and chips, so two of them can
+  share a letter. The chip's tooltip names the action; permission names stay unique by getting a number.
 - An action name is at most 30 characters, lower case letters, digits and underscores, as in NetBox.
 
 ## Scale

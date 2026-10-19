@@ -52,9 +52,12 @@ These would make the plugin a failure even if it worked:
 - **Cell**: one (principal, object type, action) triple.
 - **Grant**: a permission that covers a cell: it is assigned to the principal, lists the object type and lists the
   action.
-- **Simple permission**: a permission assigned to exactly one principal, with exactly one action and no
-  constraints. The plugin creates and grows only simple permissions, so each principal ends up with at most one per
-  action. If several qualify (made by hand), the one with the lowest ID is used.
+- **Simple permission**: a permission assigned to exactly one principal, enabled and without constraints, whatever
+  its actions. The plugin creates, grows and shrinks only simple permissions, so each principal ends up with at most
+  one per set of actions. If several qualify for a set (made by hand), the one with the lowest ID is used.
+- **Action letters**: the short form of an action set used in names: `v` view, `a` add, `c` change, `d` delete, `r`
+  render_config, `s` sync, any other action its first letter. Reserved actions come first in that order, then
+  custom actions by name. View, add and change is `vac`.
 
 ## The matrix page
 
@@ -64,23 +67,27 @@ URL `/plugins/permissions-matrix/`. Menu entry "Permissions Matrix" in Admin > A
 ### Layout
 
 ```
-[View] [Add] [Change] [Delete] [custom actions...]      [search] [app filter] [x] users  [columns]
+[All actions] [View] [Add] [Change] [Delete] [custom actions...]   [search] [app filter] [x] users  [columns]
 
-                          | NOC  ⚙ [all] | Ops  ⚙ [all] | Read-only ⚙ [all] |
-  DCIM            [all]   |              |              |                   |
-    Device        [all]   |     [x]      |     [ ]      |       [x]         |
-    Site          [all]   |     [x]      |     [~]      |       [x]         |
-  IPAM            [all]   |              |              |                   |
-    Prefix        [all]   |     [ ]      |     [x]      |       [x]         |
+                          |   NOC ⚙         |   Ops ⚙         |
+                          | [V A C D R S]   | [V A C D R S]   |
+  DCIM            [all]   |                 |                 |
+    Device        [all]   |  V A C D R      |  V A C D R      |
+    Site          [all]   |  V A C D        |  V A C D        |
+  Core            [all]   |                 |                 |
+    Data Source   [all]   |  V A C D   S    |  V A C D   S    |
 
                                             3 changes staged   [Discard] [Review changes]
 ```
 
-- **Action tabs** switch the whole matrix between actions. The tabs are View, Add, Change, Delete, then every custom
-  action registered by a model (`registry["model_actions"]`, NetBox 4.6+), then every free-text "additional action"
-  found in existing permissions.
-- On a custom action tab, only rows whose model registered that action are enabled; the others are greyed out.
-  Free-text actions are enabled on every row, because NetBox cannot tell which models they apply to.
+- **All actions**, the default tab, shows every action at once: each cell is a row of lettered chips, one per
+  action, each with its own state. The actions are View, Add, Change, Delete, then every custom action registered by
+  a model (`registry["model_actions"]`, NetBox 4.6+), then every free-text "additional action" found in existing
+  permissions. A custom action only has a chip on rows whose model registered it; the slot stays empty elsewhere so
+  the letters line up. Free-text actions have a chip on every row, because NetBox cannot tell which models they
+  apply to.
+- **Single-action tabs** follow, one per action, with one box per cell. On a custom action tab, only rows whose
+  model registered that action are enabled; the others are greyed out.
 - **Rows** are the object types that NetBox allows in a permission (the same `OBJECTPERMISSION_OBJECT_TYPES` filter
   the classic form uses), grouped by app. App sections can be collapsed. A search box filters rows by name; an app
   filter limits the apps shown; a "Only rows with grants" switch hides empty rows.
@@ -94,17 +101,20 @@ URL `/plugins/permissions-matrix/`. Menu entry "Permissions Matrix" in Admin > A
   example non-public types set through the API) have no row. The planner still keeps them intact when it rewrites
   or splits a permission.
 - The header row and the first column stay in view while scrolling.
-- Each column header has a gear icon (see [The gear panel](#the-gear-panel)) and an "all" toggle that ticks or
-  unticks every visible, enabled row in that column. Each row and app section has an "all" toggle that does the same
-  across the visible columns.
+- Each column header has a gear icon (see [The gear panel](#the-gear-panel)). On All actions it also has one letter
+  toggle per action, which ticks or unticks that action on every visible, enabled row in the column; on a
+  single-action tab it has one "all" toggle. Each row and app section has an "all" toggle that does the same across
+  the visible columns, for every action on All actions.
 - Clicking an object type name opens the [Who can](#who-can-page) page for it.
 
 ### Cell states
 
+Each chip on All actions, or box on a single-action tab, shows one state:
+
 | State | Look | Meaning |
 |-------|------|---------|
-| Not granted | empty box | No permission covers the cell. |
-| Granted | ticked box | At least one enabled permission without constraints covers the cell. |
+| Not granted | empty | No permission covers the cell. |
+| Granted | filled | At least one enabled permission without constraints covers the cell. |
 | Constrained | half-filled box | Only enabled permissions with constraints cover the cell. |
 | Disabled | ticked box, dimmed | Only disabled permissions cover the cell. NetBox ignores them. |
 | Staged | coloured outline | Changed in the browser, not yet applied. |
@@ -118,21 +128,22 @@ every covering permission's grant for it, constrained or not.
 
 ### The gear panel
 
-The gear icon on a column opens a side panel for that principal and the active action. It shows:
+The gear icon on a column opens a side panel listing the principal's permissions: every permission assigned to it on
+All actions, the ones granting the column's action on a single-action tab (on the group tab, the action of the
+column). Each entry shows its name, actions, number of object types, disabled and constrained badges, and a link to
+its classic page. Opening an entry gives a form for:
 
-- The principal's simple permission for this action, if there is one, as an editable form: name, description,
-  enabled, constraints (JSON, validated the way the classic form validates it), additional users and groups,
-  additional actions. If there is none, the panel says so: ticking a cell in the column creates one, which can then be
-  edited.
-- Every other permission that grants this action to the principal, read-only, with a summary (object types,
-  actions, other principals, constraints) and a link to its classic edit page.
+- name and description;
+- enabled;
+- constraints (JSON), which apply to every object type and action of that permission.
 
-Edits made in the panel are staged like cell clicks and go through the same review. Name, description and enabled
-can be changed freely. Adding constraints, additional actions, users or groups makes the permission no longer
-simple: the plugin then stops reusing it for new grants, and the next new grant for this principal and action
-creates a new simple permission. The panel shows a warning before any such change is staged. Disabling a simple
-permission keeps it simple for matching, but grants added to it stay inactive until it is enabled again; the cell
-shows the "disabled" state and the panel says so.
+A permission shared with other principals carries a warning in its form: the edit changes their access too.
+
+Edits made in the panel are staged per permission ID and go through the same review. Adding constraints to a simple
+permission, or disabling it, makes it no longer simple: the plugin then stops reusing it, and the next grant of
+that action set for this principal creates a new simple permission. The review warns when an edit does this.
+Additional actions, groups and users are not offered in the panel, since they would break the naming by action
+set; the REST API still accepts them.
 
 Constraints are validated the way the classic form validates them: a single object or a list of objects (combined
 with OR), the `$user` token allowed, and a test query run against every object type of the permission.
@@ -156,18 +167,23 @@ Keeping the planner free of Django makes it fast to test exhaustively.
 
 ### Granting a cell
 
-For cell (principal p, object type t, action a):
+Grants are handled per (principal p, object type t), with A the actions ticked for that pair:
 
-1. If an enabled permission without constraints already covers the cell, do nothing.
-2. Otherwise, if p has a simple permission for a, add t to its object types. If that permission is disabled, the
-   plan says the grant stays inactive until it is enabled.
-3. Otherwise, create a simple permission for p and a with object types [t]. Its name comes from the
-   `new_permission_name` setting (default `"{principal} | {action}"`, for example `NOC | change`). A number is
-   appended if the name is already taken.
+1. Drop from A every action an enabled permission without constraints already covers. If nothing is left, do
+   nothing.
+2. If one of p's simple permissions S lists t (the lowest ID if several do), remove t from S and add S's actions to
+   A.
+3. Add t to p's simple permission for exactly the action set A. If there is none:
+   - if step 2 emptied S, S becomes it: it takes the actions A and the object type t, keeping its ID, description
+     and settings. If S still has a generated name (the template's result for its old actions, with or without a
+     number), it is renamed for A; a name set by hand is kept;
+   - otherwise, create it. Its name comes from the `new_permission_name` setting (default
+     `"{principal}_{actions}"`, for example `noc_vac`). A number is appended if the name is already taken.
 
-Several grants for the same (p, a) in one change set end up in the same simple permission. Grants for several
-actions (from a row toggle on the group tab, for example) give one simple permission per action, never one
-permission holding several actions.
+Several object types ending with the same action set share one simple permission. After all grants and revokes, a
+simple permission the change set emptied takes over a permission the same change set created for the same
+principal, when one action set contains the other, so ticking change on every object type of `noc_va` renames
+`noc_va` to `noc_vac` instead of deleting it and creating a new one.
 
 For a user, step 1 only looks at the user's direct permissions; a grant inherited from a group does not count.
 
@@ -181,11 +197,15 @@ For each permission P that covers the revoked cells of principal p (constrained 
 3. Group the object types of the remainder by the set of actions they keep. Each group becomes one permission with
    those object types and those actions. This is the smallest set of rectangles that represents the remainder
    exactly when actions are kept per object type.
-4. If P is assigned to p only:
+4. If P is one of p's simple permissions: the group that keeps all of P's actions stays in P; every other group goes
+   into p's simple permission for its action set, as in step 3 of granting. If no group keeps all of P's actions,
+   P itself becomes the permission for the first group that has none, renamed the same way; if nothing is left, P is
+   deleted unless a grant reuses it.
+5. If P is assigned to p only and is not simple:
    - remainder empty: delete P, unless a grant in the same change set reuses it as the simple permission;
    - otherwise: rewrite P in place to the largest group (keeping its name, description, enabled and constraints)
      and create one new permission per other group.
-5. If P is shared with other principals: remove p from P, so the others keep exactly what they had, and create one
+6. If P is shared with other principals: remove p from P, so the others keep exactly what they had, and create one
    new permission per group of the remainder, assigned to p only, copying P's description, enabled and constraints.
 
 New permissions created by a split are named `"{original name} ({principal})"`, with a number appended if needed.
@@ -300,7 +320,7 @@ group or the Permissions item cannot be found, the plugin logs a warning and fal
 
 | Setting | Default | Meaning |
 |---------|---------|---------|
-| `new_permission_name` | `"{principal} \| {action}"` | Name template for simple permissions the plugin creates. |
+| `new_permission_name` | `"{principal}_{actions}"` | Name template for simple permissions the plugin creates. `{principal}` is the group name or username as a lower-case slug, `{actions}` (or `{action}`) the action letters. |
 | `menu_placement` | `"admin"` | `"admin"` puts the item below Permissions; `"plugins"` uses the Plugins menu. |
 | `show_users_by_default` | `False` | Whether user columns are shown when the page opens. |
 | `hidden_apps` | `[]` | App labels whose object types are not shown as rows. |

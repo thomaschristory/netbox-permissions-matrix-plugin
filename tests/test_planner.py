@@ -1,5 +1,5 @@
 from netbox_permissions_matrix_plugin.core.model import CellChange, PermEdit
-from netbox_permissions_matrix_plugin.core.planner import plan
+from netbox_permissions_matrix_plugin.core.planner import action_letters, canonical, plan, slug
 
 from .factories import ALICE, NOC, OPS, perm, snapshot
 
@@ -44,7 +44,7 @@ def test_grant_creates_a_simple_permission_named_from_the_template():
     snap = snapshot()
     (create,) = plan(snap, [grant(NOC, "dcim.device", "change")]).operations
     assert create.op == "create"
-    assert create.after.name == "NOC | change"
+    assert create.after.name == "noc_c"
     assert create.after.actions == ("change",)
     assert create.after.groups == {NOC.id}
     assert create.after.users == frozenset()
@@ -53,18 +53,16 @@ def test_grant_creates_a_simple_permission_named_from_the_template():
 
 def test_custom_name_template():
     (create,) = plan(
-        snapshot(), [grant(ALICE, "dcim.device", "view")], name_template="{action} for {principal}"
+        snapshot(), [grant(ALICE, "dcim.device", "view")], name_template="{actions} for {principal}"
     ).operations
-    assert create.after.name == "view for alice"
+    assert create.after.name == "v for alice"
     assert create.after.users == {ALICE.id}
 
 
 def test_name_clash_appends_a_number():
-    snap = snapshot(
-        perm(1, "NOC | change", ["change"], ["dcim.site"], NOC, OPS), perm(2, "NOC | change 2", ["view"], [], OPS)
-    )
+    snap = snapshot(perm(1, "noc_c", ["change"], ["dcim.site"], NOC, OPS), perm(2, "noc_c 2", ["view"], [], OPS))
     (create,) = plan(snap, [grant(NOC, "dcim.device", "change")]).operations
-    assert create.after.name == "NOC | change 3"
+    assert create.after.name == "noc_c 3"
 
 
 def test_name_clash_with_names_created_in_the_same_plan():
@@ -80,9 +78,65 @@ def test_grants_for_one_principal_and_action_share_one_permission():
     assert create.after.object_types == {"dcim.device", "dcim.site"}
 
 
-def test_grants_for_several_actions_give_one_permission_per_action():
-    result = plan(snapshot(), [grant(NOC, "dcim.device", a) for a in ("view", "add", "change")])
-    assert sorted(o.after.actions for o in result.operations) == [("add",), ("change",), ("view",)]
+def test_grants_for_several_actions_give_one_permission_for_the_set():
+    result = plan(snapshot(), [grant(NOC, "dcim.device", a) for a in ("change", "view", "add")])
+    (create,) = result.operations
+    assert (create.after.name, create.after.actions) == ("noc_vac", ("view", "add", "change"))
+
+
+def test_object_types_with_the_same_actions_share_a_permission():
+    changes = [grant(NOC, ot, a) for ot in ("dcim.device", "dcim.site") for a in ("view", "add")]
+    changes += [grant(NOC, "ipam.prefix", "view")]
+    result = plan(snapshot(), changes)
+    assert {o.after.name: o.after.object_types for o in result.operations} == {
+        "noc_va": {"dcim.device", "dcim.site"},
+        "noc_v": {"ipam.prefix"},
+    }
+
+
+def test_grant_moves_the_object_type_to_the_larger_action_set():
+    snap = snapshot(perm(1, "noc_va", ["view", "add"], ["dcim.device", "dcim.site"], NOC))
+    update, create = plan(snap, [grant(NOC, "dcim.device", "change")]).operations
+    assert (update.op, update.key, update.after.object_types) == ("update", "1", {"dcim.site"})
+    assert (create.op, create.after.name, create.after.object_types) == ("create", "noc_vac", {"dcim.device"})
+
+
+def test_grant_into_an_existing_set_permission():
+    snap = snapshot(
+        perm(1, "noc_v", ["view"], ["dcim.device"], NOC), perm(2, "noc_va", ["add", "view"], ["dcim.site"], NOC)
+    )
+    ops = plan(snap, [grant(NOC, "dcim.device", "add")]).operations
+    assert [(o.op, o.key) for o in ops] == [("delete", "1"), ("update", "2")]
+    assert ops[1].after.object_types == {"dcim.device", "dcim.site"}
+
+
+def test_grant_on_every_object_type_renames_the_permission_in_place():
+    snap = snapshot(perm(1, "noc_va", ["view", "add"], ["dcim.device", "dcim.site"], NOC, description="kept"))
+    (update,) = plan(snap, [grant(NOC, ot, "change") for ot in ("dcim.device", "dcim.site")]).operations
+    assert (update.op, update.key, update.after.name) == ("update", "1", "noc_vac")
+    assert update.after.actions == ("view", "add", "change")
+    assert update.after.object_types == {"dcim.device", "dcim.site"}
+    assert update.after.description == "kept"
+
+
+def test_a_name_set_by_hand_is_kept_when_the_actions_change():
+    snap = snapshot(perm(1, "NOC engineers", ["view"], ["dcim.device"], NOC))
+    (update,) = plan(snap, [grant(NOC, "dcim.device", "change")]).operations
+    assert (update.key, update.after.name, update.after.actions) == ("1", "NOC engineers", ("view", "change"))
+
+
+def test_action_letters_and_order():
+    assert canonical(["sync", "delete", "view", "render_config", "add"]) == (
+        "view",
+        "add",
+        "delete",
+        "render_config",
+        "sync",
+    )
+    assert action_letters(["sync", "render_config", "change", "view", "add", "delete"]) == "vacdrs"
+    assert action_letters(["view", "run"]) == "vr"
+    assert slug("NOC Paris (L2)") == "noc_paris_l2"
+    assert slug("!!!") == "principal"
 
 
 def test_user_grant_ignores_group_grants():
@@ -91,11 +145,10 @@ def test_user_grant_ignores_group_grants():
     assert create.after.users == {ALICE.id}
 
 
-def test_grant_into_disabled_simple_permission_warns():
-    snap = snapshot(perm(1, "NOC | view", ["view"], ["dcim.site"], NOC, enabled=False))
-    result = plan(snap, [grant(NOC, "dcim.device", "view")])
-    assert result.operations[0].op == "update"
-    assert any("disabled" in w for w in result.warnings)
+def test_grant_leaves_a_disabled_permission_alone():
+    snap = snapshot(perm(1, "noc_v", ["view"], ["dcim.site"], NOC, enabled=False))
+    (create,) = plan(snap, [grant(NOC, "dcim.device", "view")]).operations
+    assert (create.op, create.after.name, create.after.enabled) == ("create", "noc_v 2", True)
 
 
 def test_lowest_id_simple_permission_is_used():
@@ -299,3 +352,63 @@ def test_edit_without_a_simple_permission_warns_and_does_nothing():
     result = plan(snapshot(), [], [PermEdit(NOC, "view", description="x")])
     assert result.empty
     assert result.warnings
+
+
+# Action sets on revoke
+
+
+def test_revoke_moves_the_object_type_to_the_smaller_action_set():
+    snap = snapshot(perm(1, "noc_va", ["view", "add"], ["dcim.device", "dcim.site"], NOC))
+    update, create = plan(snap, [revoke(NOC, "dcim.device", "add")]).operations
+    assert (update.key, update.after.name, update.after.object_types) == ("1", "noc_va", {"dcim.site"})
+    assert (create.after.name, create.after.actions, create.after.object_types) == (
+        "noc_v",
+        ("view",),
+        {"dcim.device"},
+    )
+
+
+def test_revoke_on_every_object_type_renames_the_permission_in_place():
+    snap = snapshot(perm(1, "noc_va", ["view", "add"], ["dcim.device", "dcim.site"], NOC))
+    (update,) = plan(snap, [revoke(NOC, ot, "add") for ot in ("dcim.device", "dcim.site")]).operations
+    assert (update.op, update.key, update.after.name, update.after.actions) == ("update", "1", "noc_v", ("view",))
+    assert update.after.object_types == {"dcim.device", "dcim.site"}
+
+
+def test_revoke_joins_an_existing_set_permission():
+    snap = snapshot(
+        perm(1, "noc_va", ["view", "add"], ["dcim.device"], NOC), perm(2, "noc_v", ["view"], ["dcim.site"], NOC)
+    )
+    ops = plan(snap, [revoke(NOC, "dcim.device", "add")]).operations
+    assert [(o.op, o.key) for o in ops] == [("delete", "1"), ("update", "2")]
+    assert ops[1].after.object_types == {"dcim.device", "dcim.site"}
+
+
+# Edits by permission ID
+
+
+def test_edit_by_id_sets_constraints_and_warns():
+    snap = snapshot(perm(4, "noc_va", ["view", "add"], ["dcim.device"], NOC))
+    result = plan(snap, [], [PermEdit(NOC, perm_id=4, constraints={"tenant__slug": "acme"})])
+    (update,) = result.operations
+    assert (update.key, update.after.constraints) == ("4", {"tenant__slug": "acme"})
+    assert any("no longer simple" in w for w in result.warnings)
+
+
+def test_edit_by_id_removes_constraints():
+    snap = snapshot(perm(4, "paris", ["view"], ["dcim.device"], NOC, constraints={"site__slug": "paris"}))
+    (update,) = plan(snap, [], [PermEdit(NOC, perm_id=4, constraints=None)]).operations
+    assert update.after.constraints is None
+
+
+def test_edit_by_id_of_a_shared_permission_is_allowed():
+    snap = snapshot(perm(4, "shared", ["view"], ["dcim.device"], NOC, OPS))
+    (update,) = plan(snap, [], [PermEdit(NOC, perm_id=4, enabled=False)]).operations
+    assert update.affects == {NOC, OPS}
+
+
+def test_edit_by_id_of_someone_elses_permission_is_left_out():
+    snap = snapshot(perm(4, "ops_v", ["view"], ["dcim.device"], OPS))
+    result = plan(snap, [], [PermEdit(NOC, perm_id=4, description="x")])
+    assert result.empty
+    assert any("not assigned to NOC" in w for w in result.warnings)

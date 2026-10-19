@@ -74,9 +74,9 @@ class _Work:
         self.reasons[key].append(reason)
         return key
 
-    def replace(self, key: str, perm: Perm, reason: str) -> None:
+    def replace(self, key: str, perm: Perm, *reasons: str) -> None:
         self.perms[key] = perm
-        self.reasons[key].append(reason)
+        self.reasons[key].extend(reasons)
 
     def delete(self, key: str, reason: str) -> None:
         del self.perms[key]
@@ -118,26 +118,54 @@ def _dedupe(changes: Iterable[CellChange]) -> list[CellChange]:
     return [last[k] for k in sorted(last)]
 
 
-def _place(work: _Work, ref: PrincipalRef, types: set[str], actions: Iterable[str], reason: str, template: str) -> None:
-    """Add object types to the principal's simple permission for this action set, created if needed."""
+def _generated_name(work: _Work, ref: PrincipalRef, actions: Iterable[str], template: str) -> str:
+    letters = action_letters(actions)
+    return template.format(principal=slug(work.snap.name_of(ref)), actions=letters, action=letters)
+
+
+def _place(
+    work: _Work,
+    ref: PrincipalRef,
+    types: set[str],
+    actions: Iterable[str],
+    reason: str,
+    template: str,
+    reuse: str | None = None,
+) -> str | None:
+    """Add object types to the principal's simple permission for this action set.
+
+    Without one, reuse (a simple permission this change emptied) is turned into it, keeping its ID; otherwise one is
+    created. Returns reuse if it was not used.
+    """
     actions = canonical(actions)
     key = work.set_key(ref, actions)
     if key is not None:
         perm = work.perms[key]
         work.replace(key, dataclasses.replace(perm, object_types=perm.object_types | types), reason)
-        return
-    letters = action_letters(actions)
-    pname = slug(work.snap.name_of(ref))
+        return reuse
+    if reuse is not None:
+        perm = work.perms[reuse]
+        name = perm.name
+        generated = _generated_name(work, ref, perm.actions, template)
+        if re.fullmatch(rf"{re.escape(generated)}( \d+)?", name):
+            # Still the name the plugin gave it: rename it after its new actions.
+            work.names.discard(name)
+            name = work.unique_name(_generated_name(work, ref, actions, template))
+        work.replace(
+            reuse, dataclasses.replace(perm, name=name, actions=actions, object_types=frozenset(types)), reason
+        )
+        return None
     work.create(
         Perm(
             id=None,
-            name=work.unique_name(template.format(principal=pname, actions=letters, action=letters)),
+            name=work.unique_name(_generated_name(work, ref, actions, template)),
             actions=actions,
             object_types=frozenset(types),
             **_assign(ref),
         ),
         reason,
     )
+    return reuse
 
 
 def _revoke(work: _Work, ref: PrincipalRef, cells: set[tuple[str, str]], template: str) -> None:
@@ -167,13 +195,14 @@ def _revoke(work: _Work, ref: PrincipalRef, cells: set[tuple[str, str]], templat
             work.replace(
                 key, dataclasses.replace(perm, object_types=frozenset(same)), f"Revoke {cells_text} for {pname}"
             )
+            reuse = None
             if not same:
                 work.emptied.add(key)
+                reuse = key
             for actions, types in ordered:
                 if set(actions) != set(perm.actions):
-                    _place(
-                        work, ref, types, actions, f"Keep {', '.join(actions)} for {pname} after {cells_text}", template
-                    )
+                    reason = f"Keep {', '.join(actions)} for {pname} after revoking {cells_text}"
+                    reuse = _place(work, ref, types, actions, reason, template, reuse)
             continue
         if exclusive and not ordered:
             # Emptied, not deleted yet: a grant in the same change set may reuse it (see _drop_emptied).
@@ -208,12 +237,41 @@ def _revoke(work: _Work, ref: PrincipalRef, cells: set[tuple[str, str]], templat
             )
 
 
-def _drop_emptied(work: _Work) -> None:
-    """Delete the permissions revokes emptied and no grant reused."""
+def _drop_emptied(work: _Work, template: str) -> None:
+    """Delete the permissions this plan emptied and nothing reused.
+
+    An emptied simple permission first takes over a permission the plan created for the same principal when one's
+    actions contain the other's (view, add emptied while view, add, change was created): it keeps its ID instead.
+    """
     for key in sorted(work.emptied, key=work.order):
         perm = work.perms[key]
-        if not perm.object_types:
+        if perm.object_types:
+            continue
+        refs = perm.principals()
+        ref = next(iter(refs)) if len(refs) == 1 else None
+        created = next(
+            (
+                k
+                for k in work.ordered_keys()
+                if k.startswith("new-")
+                and ref is not None
+                and work.perms[k].is_simple(ref)
+                and (set(work.perms[k].actions) <= set(perm.actions) or set(work.perms[k].actions) >= set(perm.actions))
+            ),
+            None,
+        )
+        if created is None:
             work.delete(key, f"Nothing left in {perm.name}")
+            continue
+        new = work.perms.pop(created)
+        name = perm.name
+        if re.fullmatch(rf"{re.escape(_generated_name(work, ref, perm.actions, template))}( \d+)?", name):
+            name = new.name
+        work.replace(
+            key,
+            dataclasses.replace(perm, name=name, actions=new.actions, object_types=new.object_types),
+            *work.reasons.pop(created, [f"Becomes {new.name}"]),
+        )
 
 
 def _grant(work: _Work, ref: PrincipalRef, ot: str, actions: set[str], template: str) -> None:
@@ -227,6 +285,7 @@ def _grant(work: _Work, ref: PrincipalRef, ot: str, actions: set[str], template:
     pname = work.snap.name_of(ref)
     text = ", ".join(canonical(needed))
     have: set[str] = set()
+    reuse = None
     source = next(
         (k for k in work.ordered_keys() if work.perms[k].is_simple(ref) and ot in work.perms[k].object_types), None
     )
@@ -241,7 +300,8 @@ def _grant(work: _Work, ref: PrincipalRef, ot: str, actions: set[str], template:
         )
         if not work.perms[source].object_types:
             work.emptied.add(source)
-    _place(work, ref, {ot}, have | needed, f"Grant {text} on {ot} to {pname}", template)
+            reuse = source
+    _place(work, ref, {ot}, have | needed, f"Grant {text} on {ot} to {pname}", template, reuse)
 
 
 def _edit(work: _Work, edit: PermEdit) -> None:
@@ -322,7 +382,7 @@ def plan(
             grants[(change.principal, change.object_type)].add(change.action)
     for ref, ot in sorted(grants):
         _grant(work, ref, ot, grants[(ref, ot)], name_template)
-    _drop_emptied(work)
+    _drop_emptied(work, name_template)
     for edit in sorted(edits, key=lambda e: (e.principal, e.action, e.perm_id or 0)):
         _edit(work, edit)
 

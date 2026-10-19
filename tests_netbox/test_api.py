@@ -60,6 +60,18 @@ class MatrixReadTest(APITestBase):
         self.assertEqual(cell["perms"][0]["name"], "NOC-RW")
         self.assertNotIn("dcim.rack", data["cells"][f"group:{self.noc.pk}"])
 
+    def test_matrix_with_every_action(self):
+        self.add_permissions(*VIEW)
+        data = self.client.get(reverse(MATRIX), {"action": "*"}).json()
+        self.assertEqual(data["action"], "*")
+        noc = f"group:{self.noc.pk}"
+        self.assertEqual(data["cells"][noc]["dcim.device"]["change"]["state"], "granted")
+        self.assertNotIn("delete", data["cells"][noc]["dcim.device"])
+        column = next(c for c in data["columns"] if c["key"] == noc)
+        self.assertEqual([p["name"] for p in column["perms"]], ["NOC-RW"])
+        row = next(r for r in data["rows"] if r["object_type"] == "dcim.device")
+        self.assertIn("view", row["enabled_actions"])
+
     def test_user_columns_show_inherited_access(self):
         self.add_permissions(*VIEW)
         make_perm("alice direct", ["view"], ["dcim.rack"], users=[self.alice])
@@ -190,8 +202,37 @@ class PlanApplyTest(APITestBase):
         changes = [self.change(self.ops, "ipam.prefix", "delete", True)]
         token = self.plan(changes).json()["token"]
         self.post(APPLY, {"changes": changes, "edits": [], "token": token})
-        created = perm_state(ObjectPermission.objects.get(name="Ops | delete"))
+        created = perm_state(ObjectPermission.objects.get(name="ops_d"))
         self.assertEqual((created["object_types"], created["groups"]), (["ipam.prefix"], ["Ops"]))
+
+    def test_grants_for_several_actions_go_into_one_permission(self):
+        changes = [self.change(self.ops, "ipam.prefix", a, True) for a in ("view", "add")]
+        token = self.plan(changes).json()["token"]
+        self.assertEqual(self.post(APPLY, {"changes": changes, "edits": [], "token": token}).status_code, 200)
+        created = ObjectPermission.objects.get(name="ops_va")
+        self.assertEqual(created.actions, ["view", "add"])
+
+    def test_edit_by_permission_id_sets_constraints(self):
+        target = make_perm("noc_va", ["view", "add"], ["dcim.site"], groups=[self.noc])
+        edit = {"principal": {"type": "group", "id": self.noc.pk}, "perm_id": target.pk, "constraints": {"slug": "x"}}
+        response = self.plan([], [edit])
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertTrue(any("no longer simple" in w for w in response.json()["warnings"]))
+        token = response.json()["token"]
+        self.assertEqual(self.post(APPLY, {"changes": [], "edits": [edit], "token": token}).status_code, 200)
+        target.refresh_from_db()
+        self.assertEqual(target.constraints, {"slug": "x"})
+
+    def test_edit_needs_an_action_or_a_permission_id(self):
+        edit = {"principal": {"type": "group", "id": self.noc.pk}, "description": "x"}
+        self.assertEqual(self.plan([], [edit]).status_code, 400)
+
+    def test_edit_of_a_permission_of_someone_else_is_left_out(self):
+        other = make_perm("ops_v", ["view"], ["dcim.site"], groups=[self.ops])
+        edit = {"principal": {"type": "group", "id": self.noc.pk}, "perm_id": other.pk, "description": "x"}
+        data = self.plan([], [edit]).json()
+        self.assertEqual(data["operations"], [])
+        self.assertTrue(any("not assigned to NOC" in w for w in data["warnings"]))
 
 
 class PrincipalAPITest(APITestBase):
