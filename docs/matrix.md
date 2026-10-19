@@ -7,13 +7,13 @@ Open **Admin > Authentication > Permissions Matrix**.
 ```
 [All actions] [View] [Add] [Change] [Delete] [Render Config] [Sync]   [search] [apps] [ ] Only rows with grants ...
 
-                          |   NOC ⚙         |   Ops ⚙         |
-                          | [V A C D R S]   | [V A C D R S]   |
-  DCIM            [all]   |                 |                 |
-    Device        [all]   |  V A C D R      |  V A C D R      |
-    Site          [all]   |  V A C D        |  V A C D        |
-  Core            [all]   |                 |                 |
-    Data Source   [all]   |  V A C D   S    |  V A C D   S    |
+                            |   NOC ⚙       |   Ops ⚙       |
+                            | [V A C D R S] | [V A C D R S] |
+  DCIM      all V A C D R S |               |               |
+    Device  all V A C D R   |  V A C D R    |  V A C D R    |
+    Site    all V A C D     |  V A C D      |  V A C D      |
+  Core      all V A C D R S |               |               |
+    Data S. all V A C D   S |  V A C D   S  |  V A C D   S  |
 
                                             3 changes staged   [Discard] [Review changes]
 ```
@@ -78,8 +78,10 @@ Click a chip (or a box on a single-action tab) to toggle it between granted and 
 disabled one becomes granted on the first click; the second click revokes it completely.
 
 On the All actions tab, each column header has a row of letters: click one to toggle that action for the whole
-column. The **all** toggle of a row or an app section toggles every action in every visible column. On a
-single-action tab, column headers have an **all** toggle for that action. Each toggle ticks every visible, enabled
+column. Each row and app section reads **all V A C D ...**: **all** toggles every action in every visible column,
+and a letter toggles only that action, for example **D** on the Device row gives or takes delete on Device for
+every group shown. On a single-action tab, column headers, rows and app sections have an **all** toggle for that
+action. Each toggle ticks every visible, enabled
 cell in its line, or unticks them all if they are already ticked.
 
 Changes are only staged in your browser. The bar at the bottom counts them; **Discard** forgets them. Leaving the

@@ -69,13 +69,13 @@ URL `/plugins/permissions-matrix/`. Menu entry "Permissions Matrix" in Admin > A
 ```
 [All actions] [View] [Add] [Change] [Delete] [custom actions...]   [search] [app filter] [x] users  [columns]
 
-                          |   NOC ⚙         |   Ops ⚙         |
-                          | [V A C D R S]   | [V A C D R S]   |
-  DCIM            [all]   |                 |                 |
-    Device        [all]   |  V A C D R      |  V A C D R      |
-    Site          [all]   |  V A C D        |  V A C D        |
-  Core            [all]   |                 |                 |
-    Data Source   [all]   |  V A C D   S    |  V A C D   S    |
+                            |   NOC ⚙       |   Ops ⚙       |
+                            | [V A C D R S] | [V A C D R S] |
+  DCIM      all V A C D R S |               |               |
+    Device  all V A C D R   |  V A C D R    |  V A C D R    |
+    Site    all V A C D     |  V A C D      |  V A C D      |
+  Core      all V A C D R S |               |               |
+    Data S. all V A C D   S |  V A C D   S  |  V A C D   S  |
 
                                             3 changes staged   [Discard] [Review changes]
 ```
@@ -104,7 +104,8 @@ URL `/plugins/permissions-matrix/`. Menu entry "Permissions Matrix" in Admin > A
 - Each column header has a gear icon (see [The gear panel](#the-gear-panel)). On All actions it also has one letter
   toggle per action, which ticks or unticks that action on every visible, enabled row in the column; on a
   single-action tab it has one "all" toggle. Each row and app section has an "all" toggle that does the same across
-  the visible columns, for every action on All actions.
+  the visible columns, for every action on All actions; there it is followed by one letter toggle per action that
+  applies to the row, which toggles only that action across the visible columns.
 - Clicking an object type name opens the [Who can](#who-can-page) page for it.
 
 ### Cell states

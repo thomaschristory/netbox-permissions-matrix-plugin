@@ -289,8 +289,19 @@
       if (!apps.has(row.app_label)) apps.set(row.app_label, { name: row.app_name, rows: [] });
       apps.get(row.app_label).rows.push(row);
     }
-    const allButton = (cls, attrs, title) =>
-      canEdit ? `<button type="button" class="btn btn-sm btn-ghost-primary pm-all ${cls}" ${attrs} title="${title}">all</button>` : "";
+    // "all" toggles every action on the line; in the all-actions grid, a letter per action follows it, toggling only that
+    // action. Actions that do not apply to a row keep an empty slot so the letters line up.
+    const allButton = (cls, attrs, title, row) => {
+      if (!canEdit) return "";
+      const all = `<button type="button" class="btn btn-sm btn-ghost-primary pm-all ${cls}" ${attrs} title="${title}">all</button>`;
+      if (!allMode()) return all;
+      const letters = state.data.actions
+        .map((a) => (row && !row.enabled_actions.includes(a.name)
+          ? '<span class="pm-chip pm-off" aria-hidden="true"></span>'
+          : `<button type="button" class="pm-chip pm-head-chip ${cls}" ${attrs} data-action="${esc(a.name)}" title="${title}: ${esc(a.name)} only">${esc(letter(a.name))}</button>`))
+        .join("");
+      return `<span class="pm-rowctl">${all}<span class="pm-chips">${letters}</span></span>`;
+    };
     let html = `<table class="pm-table"><thead><tr><th scope="col" class="pm-corner">${mode === "matrix" ? "Object type" : "Object type / action"}</th>${cols.map(headerHtml).join("")}</tr></thead><tbody>`;
     for (const [label, app] of apps) {
       const collapsed = state.collapsed.has(label);
@@ -298,7 +309,7 @@
       if (collapsed) continue;
       for (const row of app.rows) {
         const link = urls.whoCan.replace("__ot__", encodeURIComponent(row.object_type));
-        html += `<tr><th scope="row" class="pm-rowhead"><a href="${esc(link)}" title="Who can: ${esc(row.object_type)}">${esc(row.label)}</a>${allButton("pm-all-row", `data-ot="${esc(row.object_type)}"`, "Toggle the whole row")}</th>${cols.map((c) => cellHtml(row, c)).join("")}</tr>`;
+        html += `<tr><th scope="row" class="pm-rowhead"><a href="${esc(link)}" title="Who can: ${esc(row.object_type)}">${esc(row.label)}</a>${allButton("pm-all-row", `data-ot="${esc(row.object_type)}"`, "Toggle the whole row", row)}</th>${cols.map((c) => cellHtml(row, c)).join("")}</tr>`;
       }
     }
     if (!rows.length) html += `<tr><td class="p-4 text-secondary" colspan="${cols.length + 1}">No object type matches the filters.</td></tr>`;
@@ -651,9 +662,9 @@
       bulk(rows.filter((r) => !state.collapsed.has(r.app_label)).map((r) => [r, col]), target.dataset.action);
     } else if (target.matches(".pm-all-row")) {
       const row = rows.find((r) => r.object_type === target.dataset.ot);
-      bulk(cols.map((c) => [row, c]));
+      bulk(cols.map((c) => [row, c]), target.dataset.action);
     } else if (target.matches(".pm-all-app")) {
-      bulk(rows.filter((r) => r.app_label === target.dataset.app).flatMap((r) => cols.map((c) => [r, c])));
+      bulk(rows.filter((r) => r.app_label === target.dataset.app).flatMap((r) => cols.map((c) => [r, c])), target.dataset.action);
     } else if (target.matches(".pm-gear")) {
       panelFor(columnByKey(target.dataset.col));
     } else if (target.matches(".pm-panel-stage")) {

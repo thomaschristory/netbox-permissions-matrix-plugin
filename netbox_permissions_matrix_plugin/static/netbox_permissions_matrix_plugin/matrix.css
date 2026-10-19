@@ -127,6 +127,20 @@
   margin-left: 0.25rem;
 }
 
+/* All-actions grid: "all" then one letter per action, on the right of the row name. */
+.pm-rowhead .pm-rowctl {
+  float: right;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  margin-left: 0.5rem;
+}
+
+.pm-rowctl .pm-all {
+  float: none;
+  margin-left: 0;
+}
+
 .pm-all {
   padding: 0 0.3rem;
   font-size: 0.75rem;
