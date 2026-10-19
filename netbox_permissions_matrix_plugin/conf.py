@@ -1,0 +1,21 @@
+PLUGIN_NAME = "netbox_permissions_matrix_plugin"
+
+DEFAULTS = {
+    # Name of the simple permissions the plugin creates for new grants. {principal} is the group name or username,
+    # {action} the action. A number is appended when the name is taken.
+    "new_permission_name": "{principal} | {action}",
+    # "admin" puts the menu item below Permissions in Admin > Authentication; "plugins" uses the Plugins menu.
+    "menu_placement": "admin",
+    # Whether user columns are shown when the matrix opens.
+    "show_users_by_default": False,
+    # App labels whose object types get no row in the matrix (their grants are still kept intact).
+    "hidden_apps": [],
+}
+
+MENU_PLACEMENTS = ("admin", "plugins")
+
+
+def get_setting(key):
+    from netbox.plugins.utils import get_plugin_config
+
+    return get_plugin_config(PLUGIN_NAME, key, DEFAULTS[key])

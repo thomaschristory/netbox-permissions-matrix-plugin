@@ -1,0 +1,69 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "netbox-permissions-matrix-plugin"
+dynamic = ["version"]
+description = "Show and edit NetBox object permissions as a matrix of object types and groups."
+readme = "README.md"
+requires-python = ">=3.12"
+license = "Apache-2.0"
+authors = [{ name = "Thomas Christory" }]
+keywords = ["netbox", "netbox-plugin", "permissions", "rbac", "access-control"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Framework :: Django",
+    "Intended Audience :: System Administrators",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: System :: Networking",
+    "Topic :: System :: Systems Administration :: Authentication/Directory",
+]
+# NetBox itself is never listed: it is on PyPI since 4.7, and pip would install a second copy next to the real one.
+# PyYAML ships with NetBox.
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/thomaschristory/netbox-permissions-matrix-plugin"
+Documentation = "https://thomaschristory.github.io/netbox-permissions-matrix-plugin/"
+Repository = "https://github.com/thomaschristory/netbox-permissions-matrix-plugin"
+Changelog = "https://github.com/thomaschristory/netbox-permissions-matrix-plugin/blob/main/CHANGELOG.md"
+Issues = "https://github.com/thomaschristory/netbox-permissions-matrix-plugin/issues"
+
+[project.entry-points."netbox.plugins"]
+netbox_permissions_matrix_plugin = "netbox_permissions_matrix_plugin:config"
+
+[dependency-groups]
+dev = ["pytest>=8.3", "ruff>=0.12", "pyyaml>=6.0"]
+docs = [
+    "zensical>=0.0.65",
+]
+
+[tool.hatch.version]
+path = "netbox_permissions_matrix_plugin/version.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["netbox_permissions_matrix_plugin"]
+
+[tool.hatch.build.targets.sdist]
+# Allowlist: hatchling honours .gitignore but not .git/info/exclude.
+only-include = ["netbox_permissions_matrix_plugin", "README.md", "CHANGELOG.md", "LICENSE"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff.lint.isort]
+# NetBox's own apps are importable only inside a NetBox install; sort them as third-party.
+known-third-party = ["core", "dcim", "extras", "ipam", "netbox", "tenancy", "users", "utilities", "virtualization"]
+known-first-party = ["netbox_permissions_matrix_plugin"]
