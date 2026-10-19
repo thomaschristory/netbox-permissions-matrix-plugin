@@ -47,6 +47,7 @@ class _Work:
         self.names: set[str] = {p.name for p in snap.perms.values()}
         self.reasons: dict[str, list[str]] = defaultdict(list)
         self.warnings: list[str] = []
+        self.named: set[str] = set()  # keys an edit renamed in this change set: never renamed automatically
         self.emptied: set[str] = set()  # keys a revoke left without object types; deleted unless a grant reuses them
         self._new = 0
 
@@ -126,8 +127,13 @@ def _generated_name(work: _Work, ref: PrincipalRef, actions: Iterable[str], temp
 LEGACY_NAME_TEMPLATE = "{principal} | {action}"  # the default up to 0.1.0, one action per permission
 
 
-def _has_generated_name(work: _Work, ref: PrincipalRef, perm: Perm, template: str) -> bool:
-    """Whether the permission still has a name the plugin gave it, with or without a number: then it may be renamed."""
+def _has_generated_name(work: _Work, key: str, ref: PrincipalRef, perm: Perm, template: str) -> bool:
+    """Whether the permission still has a name the plugin gave it, with or without a number: then it may be renamed.
+
+    A name typed in the gear panel in this change set is kept, even if it looks generated.
+    """
+    if key in work.named:
+        return False
     names = [_generated_name(work, ref, perm.actions, template)]
     if len(perm.actions) == 1:
         names.append(LEGACY_NAME_TEMPLATE.format(principal=work.snap.name_of(ref), action=perm.actions[0]))
@@ -157,7 +163,7 @@ def _place(
     if reuse is not None:
         perm = work.perms[reuse]
         name = perm.name
-        if _has_generated_name(work, ref, perm, template):
+        if _has_generated_name(work, reuse, ref, perm, template):
             # Still the name the plugin gave it: rename it after its new actions.
             work.names.discard(name)
             name = work.unique_name(_generated_name(work, ref, actions, template))
@@ -281,7 +287,7 @@ def _drop_emptied(work: _Work, template: str) -> None:
             continue
         new = work.perms.pop(created)
         name = perm.name
-        if _has_generated_name(work, ref, perm, template):
+        if _has_generated_name(work, key, ref, perm, template):
             name = new.name
         work.replace(
             key,
@@ -341,6 +347,7 @@ def _edit(work: _Work, edit: PermEdit) -> None:
     if "name" in fields and fields["name"] != perm.name:
         work.names.discard(perm.name)
         fields["name"] = work.unique_name(fields["name"])
+        work.named.add(key)
     if edit.add_actions:
         fields["actions"] = perm.actions + tuple(a for a in edit.add_actions if a not in perm.actions)
     if edit.add_groups:

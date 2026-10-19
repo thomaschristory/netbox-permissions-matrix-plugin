@@ -442,3 +442,10 @@ def test_disabling_a_simple_permission_warns():
     snap = snapshot(perm(4, "noc_va", ["view", "add"], ["dcim.device"], NOC))
     result = plan(snap, [], [PermEdit(NOC, perm_id=4, enabled=False)])
     assert any(w.startswith("Once disabled, noc_va is no longer simple") for w in result.warnings)
+
+
+def test_a_name_typed_in_the_panel_is_kept_even_if_it_looks_generated():
+    snap = snapshot(perm(5, "custom", ["view"], ["dcim.device"], NOC))
+    result = plan(snap, [grant(NOC, "dcim.device", "add")], [PermEdit(NOC, perm_id=5, name="noc_v")])
+    (update,) = result.operations
+    assert (update.key, update.after.name, update.after.actions) == ("5", "noc_v", ("view", "add"))
