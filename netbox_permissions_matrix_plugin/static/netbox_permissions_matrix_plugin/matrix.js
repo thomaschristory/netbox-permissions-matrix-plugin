@@ -1,7 +1,7 @@
 /*
  * Permissions Matrix: draws the matrix from the plugin's REST API, stages changes in the browser, and sends them
  * through plan (review) and apply. Two modes share the code:
- *   - "matrix": object types x principals, for one action at a time (the main page);
+ *   - "matrix": object types x principals, every action at once as letter chips, or one action at a time;
  *   - "principal": object types x actions, for one group (the group tab).
  * No build step and no dependencies: plain DOM, fetch and <dialog>.
  */
@@ -33,7 +33,8 @@
   const listParam = (name) => params.getAll(name).filter(Boolean);
 
   const state = {
-    action: params.get("action") || root.dataset.action || "view",
+    // The server sends "*" when the action tabs are off, so the URL cannot pick a single action then.
+    action: $(".pm-tabs") ? params.get("action") || root.dataset.action || "*" : "*",
     includeUsers: params.has("users") ? params.get("users") === "1" : root.dataset.showUsers === "true",
     // Column keys picked in the column dialog ("group:3", "user:7"); null shows every column.
     shown: params.has("group_id") || params.has("user_id")
@@ -45,7 +46,7 @@
     collapsed: new Set(),
     data: null,
     staged: new Map(), // "<principal key>|<object type>|<action>" -> cell change
-    edits: new Map(), // "<principal key>|<action>" -> gear panel edit
+    edits: new Map(), // "<principal key>|#<permission ID>" -> gear panel edit
     plan: null,
     importNotes: null, // warnings and errors from the last import, shown in the review
   };
@@ -97,7 +98,7 @@
   function filterParams() {
     const next = new URLSearchParams();
     if (mode === "matrix") {
-      next.set("action", state.action);
+      if ($(".pm-tabs")) next.set("action", state.action);
       if (state.includeUsers) next.set("users", "1");
       if (state.shown) {
         for (const key of state.shown) {
@@ -119,7 +120,12 @@
 
   /* ---------- Grid model (shared by both modes) ---------- */
 
-  // A column knows its principal and action; a cell is (column, object type).
+  const LETTERS = { view: "V", add: "A", change: "C", delete: "D", render_config: "R", sync: "S" };
+  const letter = (action) => LETTERS[action] || action.charAt(0).toUpperCase();
+  // Every action in one grid: a cell holds one chip per action.
+  const allMode = () => mode === "matrix" && state.data && state.data.action === "*";
+
+  // A column knows its principal and, except in the all-actions grid, its action; a cell is (column, object type).
   function columns() {
     const data = state.data;
     if (mode === "matrix") {
@@ -130,7 +136,7 @@
         principal: { type: c.type, id: c.id },
         principalKey: c.key,
         principalName: c.name,
-        action: data.action,
+        action: data.action === "*" ? null : data.action,
         info: c,
       }));
     }
@@ -148,35 +154,40 @@
     }));
   }
 
-  function entry(col, ot) {
+  // action defaults to the column's; the all-actions grid passes it per chip.
+  function entry(col, ot, action = col.action) {
     const cells = state.data.cells;
+    if (allMode()) return ((cells[col.key] || {})[ot] || {})[action] || null;
     if (mode === "matrix") return (cells[col.key] || {})[ot] || null;
-    return (cells[ot] || {})[col.action] || null;
+    return (cells[ot] || {})[action] || null;
   }
 
-  function enabled(row, col) {
-    return mode === "matrix" ? row.enabled : row.enabled_actions.includes(col.action);
+  function enabled(row, col, action = col.action) {
+    return mode === "matrix" && !allMode() ? row.enabled : row.enabled_actions.includes(action);
   }
 
-  const cellKey = (col, ot) => `${col.principalKey}|${ot}|${col.action}`;
+  const cellKey = (col, ot, action = col.action) => `${col.principalKey}|${ot}|${action}`;
 
-  function original(col, ot) {
-    const e = entry(col, ot);
+  function original(col, ot, action = col.action) {
+    const e = entry(col, ot, action);
     return e ? e.state : "none";
   }
 
-  function effective(col, ot) {
-    const staged = state.staged.get(cellKey(col, ot));
-    return staged ? staged.granted : original(col, ot) === "granted";
+  function effective(col, ot, action = col.action) {
+    const staged = state.staged.get(cellKey(col, ot, action));
+    return staged ? staged.granted : original(col, ot, action) === "granted";
   }
 
-  function setCell(col, ot, granted) {
-    const key = cellKey(col, ot);
-    const current = original(col, ot);
+  function setCell(col, ot, granted, action = col.action) {
+    const key = cellKey(col, ot, action);
+    const current = original(col, ot, action);
     // Back to where it started: nothing to stage. A constrained or disabled cell set to "not granted" is a revoke.
     if ((granted && current === "granted") || (!granted && current === "none")) state.staged.delete(key);
-    else state.staged.set(key, { principal: col.principal, object_type: ot, action: col.action, granted });
+    else state.staged.set(key, { principal: col.principal, object_type: ot, action, granted });
   }
+
+  // The actions a cell shows: one in the single-action views, every action in the all-actions grid.
+  const cellActions = (col) => (allMode() ? state.data.actions.map((a) => a.name) : [col.action]);
 
   function visibleColumns() {
     const all = columns();
@@ -189,7 +200,8 @@
     return state.data.rows.filter((row) => {
       if (state.app && row.app_label !== state.app) return false;
       if (needle && !`${row.label} ${row.object_type} ${row.app_name}`.toLowerCase().includes(needle)) return false;
-      if (state.onlyGranted && !cols.some((c) => effective(c, row.object_type) || original(c, row.object_type) !== "none")) {
+      const any = (c) => cellActions(c).some((a) => effective(c, row.object_type, a) || original(c, row.object_type, a) !== "none");
+      if (state.onlyGranted && !cols.some(any)) {
         return false;
       }
       return true;
@@ -198,8 +210,8 @@
 
   /* ---------- Rendering ---------- */
 
-  function cellTitle(row, col, e, staged) {
-    const lines = [`${row.label}: ${col.principalName}, ${col.action}`];
+  function cellTitle(row, col, e, staged, action = col.action) {
+    const lines = [`${row.label}: ${col.principalName}, ${action}`];
     if (e && e.perms.length) {
       for (const p of e.perms) {
         let line = p.name;
@@ -216,8 +228,24 @@
     return lines.join("\n");
   }
 
+  function chipHtml(row, col, action) {
+    const ot = row.object_type;
+    if (!enabled(row, col, action)) return `<span class="pm-chip pm-off" aria-hidden="true"></span>`;
+    const e = entry(col, ot, action);
+    const staged = state.staged.get(cellKey(col, ot, action));
+    const shown = staged ? (staged.granted ? "granted" : "none") : original(col, ot, action);
+    const classes = ["pm-chip", `pm-${shown}`];
+    if (staged) classes.push("pm-is-staged");
+    if (e && e.inherited) classes.push("pm-inherited");
+    const title = esc(cellTitle(row, col, e, staged, action));
+    const data = `data-col="${esc(col.key)}" data-ot="${esc(ot)}" data-action="${esc(action)}"`;
+    if (!canEdit) return `<span class="${classes.join(" ")}" ${data} title="${title}" role="img" aria-label="${title}">${esc(letter(action))}</span>`;
+    return `<button type="button" class="${classes.join(" ")}" ${data} title="${title}" aria-label="${title}" aria-pressed="${shown === "granted"}">${esc(letter(action))}</button>`;
+  }
+
   function cellHtml(row, col) {
     const ot = row.object_type;
+    if (allMode()) return `<td class="pm-td"><div class="pm-chips" data-col="${esc(col.key)}" data-ot="${esc(ot)}">${cellActions(col).map((a) => chipHtml(row, col, a)).join("")}</div></td>`;
     const e = entry(col, ot);
     const staged = state.staged.get(cellKey(col, ot));
     const shown = staged ? (staged.granted ? "granted" : "none") : original(col, ot);
@@ -233,7 +261,15 @@
 
   function headerHtml(col) {
     const icon = col.kind === "group" ? "mdi-account-group" : col.kind === "user" ? "mdi-account" : "mdi-key";
-    const gear = `<button type="button" class="btn btn-sm btn-ghost-secondary pm-gear" data-col="${esc(col.key)}" title="Permission settings for ${esc(col.principalName)}, ${esc(col.action)}" aria-label="Permission settings for ${esc(col.principalName)}, ${esc(col.action)}"><i class="mdi mdi-cog" aria-hidden="true"></i></button>`;
+    const what = col.action ? `${col.principalName}, ${col.action}` : col.principalName;
+    const gear = `<button type="button" class="btn btn-sm btn-ghost-secondary pm-gear" data-col="${esc(col.key)}" title="Permission settings for ${esc(what)}" aria-label="Permission settings for ${esc(what)}"><i class="mdi mdi-cog" aria-hidden="true"></i></button>`;
+    if (allMode()) {
+      // One toggle per action, lined up with the chips below.
+      const toggles = canEdit
+        ? `<div class="pm-chips pm-chips-head">${cellActions(col).map((a) => `<button type="button" class="pm-chip pm-head-chip pm-all-col" data-col="${esc(col.key)}" data-action="${esc(a)}" title="Toggle ${esc(a)} for the whole column">${esc(letter(a))}</button>`).join("")}</div>`
+        : "";
+      return `<th scope="col" class="pm-colhead pm-colhead-all"><div class="pm-colname" title="${esc(col.label)}"><i class="mdi ${icon}" aria-hidden="true"></i> ${esc(col.label)} ${gear}</div>${toggles}</th>`;
+    }
     const all = canEdit
       ? `<button type="button" class="btn btn-sm btn-ghost-primary pm-all pm-all-col" data-col="${esc(col.key)}" title="Toggle the whole column">all</button>`
       : "";
@@ -254,16 +290,27 @@
       if (!apps.has(row.app_label)) apps.set(row.app_label, { name: row.app_name, rows: [] });
       apps.get(row.app_label).rows.push(row);
     }
-    const allButton = (cls, attrs, title) =>
-      canEdit ? `<button type="button" class="btn btn-sm btn-ghost-primary pm-all ${cls}" ${attrs} title="${title}">all</button>` : "";
+    // "all" toggles every action on the line; in the all-actions grid, a letter per action follows it, toggling only that
+    // action. Actions that do not apply to a row keep an empty slot so the letters line up.
+    const allButton = (cls, attrs, title, row) => {
+      if (!canEdit) return "";
+      const all = `<button type="button" class="btn btn-sm btn-ghost-primary pm-all ${cls}" ${attrs} title="${title}">all</button>`;
+      if (!allMode()) return all;
+      const letters = state.data.actions
+        .map((a) => (row && !row.enabled_actions.includes(a.name)
+          ? '<span class="pm-chip pm-off" aria-hidden="true"></span>'
+          : `<button type="button" class="pm-chip pm-head-chip ${cls}" ${attrs} data-action="${esc(a.name)}" title="${title}: ${esc(a.name)} only">${esc(letter(a.name))}</button>`))
+        .join("");
+      return `<span class="pm-rowctl">${all}<span class="pm-chips">${letters}</span></span>`;
+    };
     let html = `<table class="pm-table"><thead><tr><th scope="col" class="pm-corner">${mode === "matrix" ? "Object type" : "Object type / action"}</th>${cols.map(headerHtml).join("")}</tr></thead><tbody>`;
     for (const [label, app] of apps) {
       const collapsed = state.collapsed.has(label);
-      html += `<tr class="pm-app-row"><th scope="rowgroup" class="pm-rowhead"><button type="button" class="btn btn-sm btn-ghost-secondary pm-app-toggle" data-app="${esc(label)}" aria-expanded="${!collapsed}"><i class="mdi ${collapsed ? "mdi-chevron-right" : "mdi-chevron-down"}" aria-hidden="true"></i> ${esc(app.name)}</button>${allButton("pm-all-app", `data-app="${esc(label)}"`, "Toggle every row of this app")}</th><td class="pm-app-fill" colspan="${cols.length}"></td></tr>`;
+      html += `<tr class="pm-app-row"><th scope="rowgroup" class="pm-rowhead"><div class="pm-rowline"><button type="button" class="btn btn-sm btn-ghost-secondary pm-app-toggle" data-app="${esc(label)}" aria-expanded="${!collapsed}"><i class="mdi ${collapsed ? "mdi-chevron-right" : "mdi-chevron-down"}" aria-hidden="true"></i> ${esc(app.name)}</button>${allButton("pm-all-app", `data-app="${esc(label)}"`, "Toggle every row of this app")}</div></th><td class="pm-app-fill" colspan="${cols.length}"></td></tr>`;
       if (collapsed) continue;
       for (const row of app.rows) {
         const link = urls.whoCan.replace("__ot__", encodeURIComponent(row.object_type));
-        html += `<tr><th scope="row" class="pm-rowhead"><a href="${esc(link)}" title="Who can: ${esc(row.object_type)}">${esc(row.label)}</a>${allButton("pm-all-row", `data-ot="${esc(row.object_type)}"`, "Toggle the whole row")}</th>${cols.map((c) => cellHtml(row, c)).join("")}</tr>`;
+        html += `<tr><th scope="row" class="pm-rowhead"><div class="pm-rowline"><a href="${esc(link)}" title="Who can: ${esc(row.object_type)}">${esc(row.label)}</a>${allButton("pm-all-row", `data-ot="${esc(row.object_type)}"`, "Toggle the whole row", row)}</div></th>${cols.map((c) => cellHtml(row, c)).join("")}</tr>`;
       }
     }
     if (!rows.length) html += `<tr><td class="p-4 text-secondary" colspan="${cols.length + 1}">No object type matches the filters.</td></tr>`;
@@ -275,7 +322,10 @@
   function renderTabs() {
     const tabs = $(".pm-tabs");
     if (!tabs) return;
-    tabs.innerHTML = state.data.actions
+    const allActive = state.action === "*";
+    const total = state.staged.size + state.edits.size;
+    const allTab = `<li class="nav-item" role="presentation"><button type="button" role="tab" class="nav-link${allActive ? " active" : ""}" data-action="*" aria-selected="${allActive}" title="Every action at once">All actions${total && !allActive ? ` <span class="badge bg-primary text-primary-fg">${total}</span>` : ""}</button></li>`;
+    tabs.innerHTML = allTab + state.data.actions
       .map((a) => {
         const active = a.name === state.action;
         const hint = a.freeform ? "Action found in existing permissions" : a.custom ? a.help_text || "Custom action" : "";
@@ -287,7 +337,6 @@
   function stagedFor(action) {
     let n = 0;
     for (const change of state.staged.values()) if (change.action === action) n += 1;
-    for (const edit of state.edits.values()) if (edit.action === action) n += 1;
     return n;
   }
 
@@ -308,7 +357,7 @@
   }
 
   function refreshCell(col, ot) {
-    const button = $$(".pm-cell").find((el) => el.dataset.col === col.key && el.dataset.ot === ot);
+    const button = $$(".pm-cell, .pm-chips").find((el) => el.dataset.col === col.key && el.dataset.ot === ot);
     if (!button) return render();
     const row = state.data.rows.find((r) => r.object_type === ot);
     const td = button.closest("td");
@@ -340,128 +389,88 @@
 
   /* ---------- Gear panel ---------- */
 
+  // The column's permissions, each with its own form: every permission of the principal in the all-actions grid, the
+  // ones granting the column's action otherwise. Edits are staged per permission ID.
+  const panelPerms = (col) => col.info.perms || [col.info.simple, ...col.info.others].filter(Boolean);
+  const editKey = (col, p) => `${col.principalKey}|#${p.id}`;
+
   function panelFor(col) {
     const dialog = $(".pm-panel");
-    const info = col.info || { simple: null, others: [] };
-    const key = `${col.principalKey}|${col.action}`;
-    const staged = state.edits.get(key) || {};
-    const simple = info.simple;
-    const pendingGrant = [...state.staged.values()].some(
-      (c) => c.granted && c.action === col.action && `${c.principal.type}:${c.principal.id}` === col.principalKey,
-    );
-    $("#pm-panel-title", dialog).textContent = `${col.principalName}: ${col.action}`;
-    let html = "";
-    if (simple || pendingGrant) {
+    const perms = panelPerms(col);
+    $("#pm-panel-title", dialog).textContent = col.action ? `${col.principalName}: ${col.action}` : `${col.principalName}: permissions`;
+    const form = (p) => {
+      const staged = state.edits.get(editKey(col, p)) || {};
       const value = (field, fallback) => (field in staged ? staged[field] : fallback);
-      const groupOptions = mode === "matrix"
-        ? state.data.columns.filter((c) => c.type === "group" && c.key !== col.principalKey)
-        : [];
-      const userOptions = mode === "matrix"
-        ? state.data.columns.filter((c) => c.type === "user" && c.key !== col.principalKey)
-        : [];
-      const options = (list, chosen) =>
-        list.map((c) => `<option value="${c.id}"${(chosen || []).includes(c.id) ? " selected" : ""}>${esc(c.name)}</option>`).join("");
-      html += `<h3 class="h4">Simple permission</h3>`;
-      html += simple
-        ? `<p class="text-secondary small">New grants of <strong>${esc(col.action)}</strong> for ${esc(col.principalName)} go into <a href="${esc(permissionUrl(simple.id))}">${esc(simple.name)}</a>.</p>`
-        : `<p class="text-secondary small">This permission is created by your staged grants. You can name and describe it now.</p>`;
-      html += `
-        <div class="mb-2"><label class="form-label" for="pm-f-name">Name</label>
-          <input id="pm-f-name" class="form-control" maxlength="100" value="${esc(value("name", simple ? simple.name : ""))}" placeholder="${simple ? "" : "Default name from the new_permission_name setting"}"></div>
-        <div class="mb-2"><label class="form-label" for="pm-f-description">Description</label>
-          <input id="pm-f-description" class="form-control" maxlength="200" value="${esc(value("description", simple ? simple.description : ""))}"></div>
-        <div class="form-check form-switch mb-2"><input id="pm-f-enabled" class="form-check-input" type="checkbox"${value("enabled", simple ? simple.enabled : true) ? " checked" : ""}>
-          <label class="form-check-label" for="pm-f-enabled">Enabled</label></div>
-        <div class="mb-2"><label class="form-label" for="pm-f-constraints">Constraints</label>
-          <textarea id="pm-f-constraints" class="form-control font-monospace" rows="3" placeholder='{"site__slug": "paris"}'>${esc("constraints" in staged && staged.constraints !== null ? json(staged.constraints) : "")}</textarea>
-          <div class="form-text">An object, or a list of objects combined with OR. <code>$user</code> is the current user.</div></div>
-        <div class="mb-2"><label class="form-label" for="pm-f-actions">Additional actions</label>
-          <input id="pm-f-actions" class="form-control" value="${esc((staged.add_actions || []).join(", "))}" placeholder="change, delete"></div>`;
-      if (groupOptions.length) {
-        html += `<div class="mb-2"><label class="form-label" for="pm-f-groups">Also assign to groups</label><select id="pm-f-groups" class="form-select" multiple size="4">${options(groupOptions, staged.add_groups)}</select></div>`;
-      }
-      if (userOptions.length) {
-        html += `<div class="mb-2"><label class="form-label" for="pm-f-users">Also assign to users</label><select id="pm-f-users" class="form-select" multiple size="4">${options(userOptions, staged.add_users)}</select></div>`;
-      }
-      html += `<div class="alert alert-warning pm-panel-warning" hidden>Constraints, additional actions, groups or users make this permission no longer simple: new grants of ${esc(col.action)} for ${esc(col.principalName)} will then go into a new permission.</div>`;
-      html += `<div class="alert alert-danger pm-panel-error" hidden></div>`;
-    } else {
-      html += `<p class="text-secondary">${esc(col.principalName)} has no simple permission for <strong>${esc(col.action)}</strong> yet. Tick a cell in this column first; the permission it creates can then be edited here.</p>`;
-    }
-    html += `<h3 class="h4 mt-3">Other permissions granting ${esc(col.action)}</h3>`;
-    html += info.others.length
-      ? `<ul class="list-unstyled pm-others">${info.others.map(otherHtml).join("")}</ul>`
-      : `<p class="text-secondary small">None.</p>`;
-    $(".pm-panel-body", dialog).innerHTML = html;
-    const stage = $(".pm-panel-stage", dialog);
-    if (stage) stage.hidden = !(simple || pendingGrant);
-    dialog.dataset.col = col.key;
-    const warn = () => {
-      const warning = $(".pm-panel-warning", dialog);
-      if (!warning) return;
-      const groups = $("#pm-f-groups", dialog);
-      const users = $("#pm-f-users", dialog);
-      warning.hidden = !(
-        $("#pm-f-constraints", dialog).value.trim() ||
-        $("#pm-f-actions", dialog).value.trim() ||
-        (groups && groups.selectedOptions.length) ||
-        (users && users.selectedOptions.length)
-      );
+      const constraints = value("constraints", p.constrained ? p.constraints : null);
+      const id = (field) => `pm-p${p.id}-${field}`;
+      const shared = p.principals.length > 1
+        ? `<div class="alert alert-warning small p-2">Shared with ${esc(p.principals.map((x) => x.name).join(", "))}: edits here change their access too.</div>`
+        : "";
+      return `<details class="pm-perm card mb-2" data-perm="${p.id}"${Object.keys(staged).length ? " open" : ""}>
+        <summary class="card-body p-2">${permSummary(p)}</summary>
+        <div class="card-body p-2 pt-0">
+          ${shared}
+          <div class="mb-2"><label class="form-label" for="${id("name")}">Name</label>
+            <input id="${id("name")}" class="form-control pm-p-name" maxlength="100" value="${esc(value("name", p.name))}"></div>
+          <div class="mb-2"><label class="form-label" for="${id("description")}">Description</label>
+            <input id="${id("description")}" class="form-control pm-p-description" maxlength="200" value="${esc(value("description", p.description))}"></div>
+          <div class="form-check form-switch mb-2"><input id="${id("enabled")}" class="form-check-input pm-p-enabled" type="checkbox"${value("enabled", p.enabled) ? " checked" : ""}>
+            <label class="form-check-label" for="${id("enabled")}">Enabled</label></div>
+          <div class="mb-2"><label class="form-label" for="${id("constraints")}">Constraints</label>
+            <textarea id="${id("constraints")}" class="form-control font-monospace pm-p-constraints" rows="3" placeholder='{"site__slug": "paris"}'>${esc(constraints ? JSON.stringify(constraints, null, 2) : "")}</textarea>
+            <div class="form-text">Applies to every object type and action in this permission. An object, or a list of objects combined with OR; empty removes them. <code>$user</code> is the current user.</div></div>
+        </div></details>`;
     };
-    $$("input, textarea, select", dialog).forEach((el) => el.addEventListener("input", warn));
-    warn();
+    $(".pm-panel-body", dialog).innerHTML = `<div class="alert alert-danger pm-panel-error" hidden></div>${perms.length ? perms.map(form).join("") : '<p class="text-secondary small">No permissions yet: tick a cell first.</p>'}`;
+    const stage = $(".pm-panel-stage", dialog);
+    if (stage) stage.hidden = !perms.length;
+    dialog.dataset.col = col.key;
     dialog.showModal();
   }
 
-  function otherHtml(p) {
-    const others = p.principals.map((x) => x.name).join(", ");
-    return `<li class="mb-2"><a href="${esc(permissionUrl(p.id))}">${esc(p.name)}</a>${p.enabled ? "" : ' <span class="badge bg-secondary-lt">disabled</span>'}${p.constrained ? ' <span class="badge bg-warning-lt">constrained</span>' : ""}
-      <div class="small text-secondary">${esc(p.actions.join(", "))} on ${p.object_types.length} object type${p.object_types.length === 1 ? "" : "s"}; assigned to ${esc(others)}</div>
-      ${p.constrained ? `<code class="small">${esc(json(p.constraints))}</code>` : ""}</li>`;
+  function permSummary(p) {
+    return `<strong>${esc(p.name)}</strong> <a href="${esc(permissionUrl(p.id))}" target="_blank" rel="noopener" title="Open in NetBox"><i class="mdi mdi-open-in-new" aria-hidden="true"></i></a>${p.enabled ? "" : ' <span class="badge bg-secondary-lt">disabled</span>'}${p.constrained ? ' <span class="badge bg-warning-lt">constrained</span>' : ""}
+      <span class="small text-secondary">${esc(p.actions.join(", "))} on ${p.object_types.length} object type${p.object_types.length === 1 ? "" : "s"}</span>`;
   }
 
   function permissionUrl(id) {
     return urls.permission.replace(/\/0\/$/, `/${id}/`);
   }
 
+  // One edit per changed form; a form put back to how it was drops its staged edit.
   function stagePanel() {
     const dialog = $(".pm-panel");
     const col = columns().find((c) => c.key === dialog.dataset.col);
-    const simple = col.info && col.info.simple;
     const errorBox = $(".pm-panel-error", dialog);
-    const edit = { principal: col.principal, action: col.action };
-    const name = $("#pm-f-name", dialog).value.trim();
-    const description = $("#pm-f-description", dialog).value;
-    const enabledValue = $("#pm-f-enabled", dialog).checked;
-    const constraintsText = $("#pm-f-constraints", dialog).value.trim();
-    if (name && name !== (simple ? simple.name : "")) edit.name = name;
-    if (description !== (simple ? simple.description : "")) edit.description = description;
-    if (enabledValue !== (simple ? simple.enabled : true)) edit.enabled = enabledValue;
-    if (constraintsText) {
-      try {
-        edit.constraints = JSON.parse(constraintsText);
-      } catch (error) {
-        errorBox.textContent = `Constraints are not valid JSON: ${error.message}`;
-        errorBox.hidden = false;
-        return;
+    const pending = [];
+    for (const box of $$(".pm-perm", dialog)) {
+      const p = panelPerms(col).find((x) => String(x.id) === box.dataset.perm);
+      const edit = { principal: col.principal, perm_id: p.id };
+      const name = $(".pm-p-name", box).value.trim();
+      const description = $(".pm-p-description", box).value;
+      const enabledValue = $(".pm-p-enabled", box).checked;
+      const text = $(".pm-p-constraints", box).value.trim();
+      if (name && name !== p.name) edit.name = name;
+      if (description !== p.description) edit.description = description;
+      if (enabledValue !== p.enabled) edit.enabled = enabledValue;
+      let constraints = null;
+      if (text) {
+        try {
+          constraints = JSON.parse(text);
+        } catch (error) {
+          errorBox.textContent = `${p.name}: constraints are not valid JSON: ${error.message}`;
+          errorBox.hidden = false;
+          box.open = true;
+          return;
+        }
       }
+      if (json(constraints) !== json(p.constrained ? p.constraints : null)) edit.constraints = constraints;
+      pending.push([editKey(col, p), edit]);
     }
-    const actions = $("#pm-f-actions", dialog).value.split(/[\s,]+/).filter(Boolean);
-    if (actions.some((a) => !/^[a-z_][a-z0-9_]{0,29}$/.test(a))) {
-      errorBox.textContent = "Actions are lowercase names such as change or render_config.";
-      errorBox.hidden = false;
-      return;
+    for (const [key, edit] of pending) {
+      if (Object.keys(edit).length > 2) state.edits.set(key, edit);
+      else state.edits.delete(key);
     }
-    if (actions.length) edit.add_actions = actions;
-    const picked = (id) => {
-      const select = $(id, dialog);
-      return select ? Array.from(select.selectedOptions, (o) => Number(o.value)) : [];
-    };
-    if (picked("#pm-f-groups").length) edit.add_groups = picked("#pm-f-groups");
-    if (picked("#pm-f-users").length) edit.add_users = picked("#pm-f-users");
-    const key = `${col.principalKey}|${col.action}`;
-    if (Object.keys(edit).length > 2) state.edits.set(key, edit);
-    else state.edits.delete(key);
     dialog.close();
     updateBar();
   }
@@ -612,21 +621,25 @@
     return columns().find((c) => c.key === key);
   }
 
-  function bulk(cells) {
-    const targets = cells.filter(([row, col]) => enabled(row, col));
+  // cells are [row, column] pairs; in the all-actions grid each pair expands to every action, unless one is given.
+  function bulk(cells, action) {
+    const targets = cells
+      .flatMap(([row, col]) => (action ? [action] : cellActions(col)).map((a) => [row, col, a]))
+      .filter(([row, col, a]) => enabled(row, col, a));
     if (!targets.length) return;
-    const allOn = targets.every(([row, col]) => effective(col, row.object_type));
-    for (const [row, col] of targets) setCell(col, row.object_type, !allOn);
+    const allOn = targets.every(([row, col, a]) => effective(col, row.object_type, a));
+    for (const [row, col, a] of targets) setCell(col, row.object_type, !allOn, a);
     render();
   }
 
   root.addEventListener("click", (event) => {
     const target = event.target.closest("button");
     if (!target || !root.contains(target)) return;
-    if (target.matches(".pm-cell") && canEdit) {
+    if ((target.matches(".pm-cell") || (target.matches(".pm-chip") && !target.matches(".pm-head-chip"))) && canEdit) {
       const col = columnByKey(target.dataset.col);
       const ot = target.dataset.ot;
-      setCell(col, ot, !effective(col, ot));
+      const action = target.dataset.action || col.action;
+      setCell(col, ot, !effective(col, ot, action), action);
       refreshCell(col, ot);
       return;
     }
@@ -647,12 +660,12 @@
     const rows = visibleRows(cols);
     if (target.matches(".pm-all-col")) {
       const col = columnByKey(target.dataset.col);
-      bulk(rows.filter((r) => !state.collapsed.has(r.app_label)).map((r) => [r, col]));
+      bulk(rows.filter((r) => !state.collapsed.has(r.app_label)).map((r) => [r, col]), target.dataset.action);
     } else if (target.matches(".pm-all-row")) {
       const row = rows.find((r) => r.object_type === target.dataset.ot);
-      bulk(cols.map((c) => [row, c]));
+      bulk(cols.map((c) => [row, c]), target.dataset.action);
     } else if (target.matches(".pm-all-app")) {
-      bulk(rows.filter((r) => r.app_label === target.dataset.app).flatMap((r) => cols.map((c) => [r, c])));
+      bulk(rows.filter((r) => r.app_label === target.dataset.app).flatMap((r) => cols.map((c) => [r, c])), target.dataset.action);
     } else if (target.matches(".pm-gear")) {
       panelFor(columnByKey(target.dataset.col));
     } else if (target.matches(".pm-panel-stage")) {

@@ -5,6 +5,31 @@ versioning: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- All actions grid, now the matrix page: every action in one grid, one lettered chip per action in each cell, with
+  per-action toggles in each column header, row and app section (`all V A C D ...`). `GET matrix/?action=*` returns
+  it.
+- `show_action_tabs` setting, off by default: brings back the View, Add, Change, Delete and custom action tabs next
+  to All actions.
+- Constraints page in the documentation: how NetBox constraints work, how the matrix shows them, how to set and
+  remove them, with recipes.
+- Gear panel lists the principal's permissions and edits any of them: name, description, enabled and constraints.
+  Edits in the REST API can name a permission by `perm_id`.
+
+### Changed
+
+- New grants go into one simple permission per principal and set of actions, named after the actions:
+  `noc_va` for view and add, `noc_vacd` for all four. The default `new_permission_name` is now
+  `{principal}_{actions}`. Ticking or unticking an action moves the object type to the permission for its new set;
+  a permission left with no object types takes the new set and keeps its ID, renamed if it still has its generated
+  name.
+- A disabled permission no longer receives new grants.
+- Permissions named in the 0.1.0 style (`NOC | view`) keep being used and are renamed to the new style
+  (`noc_va`) when their actions change. A `new_permission_name` set to the old default now gives `noc | va`-style
+  names: switch it to `{principal}_{actions}`, or another pattern with `{actions}`.
+- The gear panel no longer offers additional actions, groups or users; use the permission's NetBox page or the API.
+
 ## [0.1.0] - 2026-10-19
 
 ### Added

@@ -83,6 +83,8 @@ def matrix_payload(user, query: MatrixQuery) -> dict:
     if query.app_labels:
         row_list = [r for r in row_list if r.app_label in query.app_labels]
     tabs = loader.action_tabs(snap, row_list)
+    if query.action == "*":
+        return matrix.build_all(snap, row_list, columns_for(snap, user, query), tabs, can_edit(user))
     tab = next((t for t in tabs if t.name == query.action), None) or loader.ActionTab(
         query.action, query.action, freeform=True
     )
@@ -134,6 +136,15 @@ def plan_for(user, changes, edits) -> tuple[Snapshot, Plan, str]:
     ):
         if ref.id not in (groups if ref.kind == GROUP else users):
             raise PlanError({"principal": [f"No such {ref.kind}: {ref.id}"]})
+    for edit in edits:
+        if edit.perm_id is None:
+            continue
+        target = snap.perms.get(edit.perm_id)
+        if target is None:
+            raise PlanError({"edits": [f"No such permission: {edit.perm_id}"]})
+        # Editing a permission changes everyone it is assigned to: they must all be visible to the editor.
+        if any(r.id not in (groups if r.kind == GROUP else users) for r in target.principals()):
+            raise PlanError({"edits": [f"{target.name} is also assigned to groups or users you cannot see."]})
     result = make_plan(snap, changes, edits, name_template=get_setting("new_permission_name"))
     validate_constraints(result)
     return snap, result, version_token(snap, refs)

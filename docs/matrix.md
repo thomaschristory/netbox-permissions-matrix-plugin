@@ -2,32 +2,44 @@
 
 Open **Admin > Authentication > Permissions Matrix**.
 
-![The matrix on the Change tab, with user columns and only rows with grants](img/matrix.png)
+![The matrix with every action, only rows with grants](img/matrix.png)
 
 ```
-[View] [Add] [Change] [Delete] [Sync] ...        [search] [apps] [ ] Only rows with grants  [ ] Users  [Columns]
+[search] [apps] [ ] Only rows with grants  [ ] Users  [Columns]  [Export]  [Import]
 
-                          | NOC  ⚙ [all] | Ops  ⚙ [all] | Read-only ⚙ [all] |
-  DCIM            [all]   |              |              |                   |
-    Device        [all]   |     [x]      |     [ ]      |       [x]         |
-    Site          [all]   |     [x]      |     [~]      |       [x]         |
-  IPAM            [all]   |              |              |                   |
-    Prefix        [all]   |     [ ]      |     [x]      |       [x]         |
+                            |   NOC ⚙       |   Ops ⚙       |
+                            | [V A C D R S] | [V A C D R S] |
+  DCIM      all V A C D R S |               |               |
+    Device  all V A C D R   |  V A C D R    |  V A C D R    |
+    Site    all V A C D     |  V A C D      |  V A C D      |
+  Core      all V A C D R S |               |               |
+    Data S. all V A C D   S |  V A C D   S  |  V A C D   S  |
 
                                             3 changes staged   [Discard] [Review changes]
 ```
 
 ## Actions
 
-The tabs at the top switch the whole matrix between actions:
+**All actions** opens first: each cell holds one lettered chip per action, so everything a group or user can do
+on an object type is on one line.
 
-- **View, Add, Change, Delete**: NetBox's four standard actions.
-- **Custom actions** registered by models, such as Sync on data sources or Render Config on devices. On these tabs,
-  rows whose model does not have the action are greyed out.
-- **Other actions** found in existing permissions (typed into "Additional actions" on the classic form). NetBox
-  cannot tell which models they apply to, so every row is enabled.
+| Letter | Action |
+|--------|--------|
+| V | View |
+| A | Add |
+| C | Change |
+| D | Delete |
+| R | Render Config |
+| S | Sync |
 
-The active tab is kept in the URL (`?action=change`), so a tab can be bookmarked.
+Custom actions registered by models, such as Sync on data sources or Render Config on devices, only have a chip on
+the rows whose model has them; the slot stays empty elsewhere so the letters line up down the column. Other actions
+found in existing permissions (typed into "Additional actions" on the classic form) get a chip on every row, with
+their first letter: NetBox cannot tell which models they apply to.
+
+With the `show_action_tabs` [setting](configuration.md) on, tabs next to All actions show one action at a time, with
+one box per cell. The active tab is kept in the URL (`?action=change`), so a tab can be bookmarked; All actions is
+`?action=*` or no parameter. The setting is off by default, and the page then shows only the all-actions grid.
 
 ## Rows and columns
 
@@ -46,26 +58,32 @@ Click an object type to open its [who can](who-can.md) page.
 
 ## Cell states
 
-| Box | State | Meaning |
-|-----|-------|---------|
+Each chip, or box on a single-action tab, shows one of these states:
+
+| Look | State | Meaning |
+|------|-------|---------|
 | empty | Not granted | No permission covers the cell. |
-| ticked | Granted | At least one enabled permission without constraints covers the cell. |
-| half filled | Constrained | Only permissions with constraints cover the cell: access to some objects, not all. |
+| filled green | Granted | At least one enabled permission without constraints covers the cell. |
+| half filled | Constrained | Only permissions with [constraints](constraints.md) cover the cell: access to some objects, not all. |
 | ticked, dimmed | Disabled | Only disabled permissions cover the cell. NetBox ignores them. |
 | coloured outline | Staged | Changed on the page, not applied yet. |
 
-Hover a cell to see every permission that covers it, with its constraints and a link to it.
+Hover a chip or box to see every permission that covers it, with its constraints.
 
 In a user column, a small dot marks access the user also has through a group; the tooltip names the group. The dot
 is only information: the user column changes the user's own permissions, never the group's.
 
 ## Changing cells
 
-Click a cell to toggle it between granted and not granted. A constrained or disabled cell becomes granted on the first
-click; the second click revokes it completely.
+Click a chip (or a box on a single-action tab) to toggle it between granted and not granted. A constrained or
+disabled one becomes granted on the first click; the second click revokes it completely.
 
-Each column header, app section and row has an **all** toggle: it ticks every visible, enabled cell in that line, or
-unticks them all if they are already ticked.
+In the all-actions grid, each column header has a row of letters: click one to toggle that action for the whole
+column. Each row and app section reads **all V A C D ...**: **all** toggles every action in every visible column,
+and a letter toggles only that action, for example **D** on the Device row gives or takes delete on Device for
+every group shown. On a single-action tab, column headers, rows and app sections have an **all** toggle for that
+action. Each toggle ticks every visible, enabled
+cell in its line, or unticks them all if they are already ticked.
 
 Changes are only staged in your browser. The bar at the bottom counts them; **Discard** forgets them. Leaving the
 page with staged changes asks for confirmation.
@@ -81,24 +99,35 @@ nothing is written and the page asks you to reload.
 
 ## The gear panel
 
-The gear next to a column name opens a panel for that group or user and the active action:
+The gear next to a column name opens a panel listing the group's or user's permissions: all of them in the
+all-actions grid, the ones granting the action on a single-action tab. Each shows its actions and how many object types
+it covers, and links to its page in NetBox. Open one to edit:
 
-- The principal's **simple permission** for the action (the one new grants go into), as a form: name, description,
-  enabled, constraints, additional actions, groups and users. If there is none yet, the panel says so; tick a cell
-  first.
-- Every **other permission** that grants the action to the principal, read-only, with a link to edit it on the
-  classic page.
+- name and description;
+- enabled;
+- constraints, for every object type and action in that permission.
 
-![The gear panel for NOC on the Change tab](img/gear-panel.png)
+![The gear panel for Ops, with constraints on ops_d](img/gear-panel.png)
 
-Panel changes are staged and reviewed like cell changes. Adding constraints, actions, groups or users to the simple
-permission makes it no longer simple: new grants then go into a new permission. The panel warns before staging such
-a change.
+Panel changes are staged and reviewed like cell changes. A permission shared with other groups or users says so at
+the top of its form: editing it changes their access too. If a new name is already taken, the review shows it with
+a number appended.
+
+Panel edits are applied before the cell changes of the same review. So if you disable `noc_v` and tick view on
+another object type in one go, the new grant goes into a new permission and is not disabled with `noc_v`. If the
+cell changes remove everything from a permission you also edited, the permission is deleted and the review warns
+that the edit is lost.
+
+Adding constraints to a simple permission such as `ops_va`, or disabling it, makes it no longer simple: the review warns that new
+grants of view and add for Ops will then go into a new permission (`ops_va 2`). To give a group constrained access
+to some object types and full access to others, keep them in separate permissions. To add actions, groups or users
+to a permission, use its page in NetBox or the [REST API](api.md).
 
 Constraints use NetBox's format: an object, or a list of objects combined with OR, and `$user` for the current user.
+[Constraints](constraints.md) explains them in full, with recipes.
 They are checked against every object type of the permission, as on the classic form.
 
 ## Read-only mode
 
-Users who may view permissions but not add, change or delete them see the matrix without checkboxes. See
+Users who may view permissions but not add, change or delete them see the matrix read-only: chips show their state but do not toggle, and there is no review. See
 [Permissions](permissions.md).

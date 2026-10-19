@@ -77,12 +77,55 @@ def test_random_change_sets(seed):
                     )
                 elif wanted:
                     state = cell_state(after, ref, ot, action)
-                    assert state in (CellState.GRANTED, CellState.DISABLED), (ref, ot, action, state)
-                    if state is CellState.DISABLED:
-                        assert result.warnings
+                    assert state is CellState.GRANTED, (ref, ot, action, state)
                 else:
                     assert cell_state(after, ref, ot, action) is CellState.NONE, (ref, ot, action)
 
     names = [p.name for p in after.perms.values()]
     assert len(names) == len(set(names)) or len(set(p.name for p in snap.perms.values())) < len(snap.perms)
     assert all(p.object_types and p.actions for p in after.perms.values())
+
+
+DENSE_TYPES = ["a.x", "a.y", "a.z"]
+DENSE_ACTIONS = ["view", "add", "change"]
+# Names the planner itself would generate, so reuse, renaming and numbering all come into play.
+DENSE_NAMES = ["noc_v", "noc_va", "ops_v", "noc_v 2", "NOC | view"]
+
+
+@pytest.mark.parametrize("seed", range(3000))
+def test_dense_change_sets(seed):
+    """Few object types and actions, so revokes, splits, moves between action sets and reuse collide often."""
+    rng = random.Random(seed)
+    perms = [
+        perm(
+            pid,
+            rng.choice([f"p{pid}", *DENSE_NAMES]),
+            rng.sample(DENSE_ACTIONS, rng.randint(1, 2)),
+            rng.sample(DENSE_TYPES, rng.randint(1, 2)),
+            *rng.sample(PRINCIPALS, rng.randint(1, 2)),
+            enabled=rng.random() > 0.2,
+            constraints=rng.choice(CONSTRAINTS),
+        )
+        for pid in range(1, rng.randint(1, 5) + 1)
+    ]
+    snap = snapshot(*perms)
+    changes = [
+        CellChange(rng.choice(PRINCIPALS[:2]), rng.choice(DENSE_TYPES), rng.choice(DENSE_ACTIONS), rng.random() > 0.5)
+        for _ in range(rng.randint(1, 6))
+    ]
+    final = {(c.principal, c.object_type, c.action): c.granted for c in changes}
+    result = plan(snap, changes)
+    after = apply(snap, result)
+
+    for ref in PRINCIPALS:
+        for ot in DENSE_TYPES:
+            for action in DENSE_ACTIONS:
+                wanted = final.get((ref, ot, action))
+                if wanted is None:
+                    assert access(after.perms, ref, ot, action) == access(snap.perms, ref, ot, action)
+                elif wanted:
+                    assert cell_state(after, ref, ot, action) is CellState.GRANTED, (ref, ot, action)
+                else:
+                    assert cell_state(after, ref, ot, action) is CellState.NONE, (ref, ot, action)
+    assert all(p.object_types and p.actions for p in after.perms.values())
+    assert result.operations == plan(snap, changes).operations

@@ -17,11 +17,11 @@ The [same permissions](permissions.md) as on the page apply. `plan/` and `apply/
 
 ## `GET matrix/`
 
-The matrix for one action.
+The matrix for one action, or for every action at once.
 
 | Parameter | Default | Meaning |
 |-----------|---------|---------|
-| `action` | `view` | The action: `view`, `add`, `change`, `delete`, a registered custom action, or any other action name. |
+| `action` | `view` | The action: `view`, `add`, `change`, `delete`, a registered custom action, or any other action name. `*` returns every action (see below). |
 | `include_users` | the `show_users_by_default` setting | `true` adds a column for every user with a permission assigned directly. |
 | `group_id` | all groups | Only these groups. Repeat the parameter for several. |
 | `user_id` | | These users, whether or not they have direct permissions. Implies user columns. |
@@ -50,10 +50,30 @@ The response:
 - `state` is `granted`, `constrained`, `disabled` or `none`; see [Cell states](matrix.md#cell-states).
 - A user cell can carry `"inherited": {"state": "granted", "groups": ["NOC"]}`: access through group membership,
   which the user column never edits.
-- `columns[].simple` is the principal's simple permission for the action (the one new grants go into), and
-  `columns[].others` every other permission granting it the action.
+- `columns[].simple` is the principal's permission holding only this one action, unconstrained, if there is one,
+  and `columns[].others` every other permission granting it the action. This is narrower than a simple permission
+  in [How changes map to permissions](changes.md): `noc_va` is simple there but appears under `others` for view.
 - Permission objects in `perms`, `simple` and `others` also carry `description`, `actions`, `object_types`,
   `constraints`, `principals` and `url`.
+
+With `action=*` the response has `"action": "*"` and three differences:
+
+- `cells` has one more level, the action: `cells["group:1"]["dcim.device"]["change"]`.
+- `rows[].enabled_actions` lists the actions that apply to the row, in place of `rows[].enabled`.
+- `columns[].perms` lists every permission assigned to the principal, in place of `simple` and `others`.
+
+## `GET principal/`
+
+One group's or user's cells for every action, as the [group tab](group-tab.md) shows them.
+
+| Parameter | Meaning |
+|-----------|---------|
+| `type` | `group` or `user`. |
+| `id` | The group's or user's ID. Unknown, or not visible to you, gives HTTP 404. |
+
+The response has `principal` (`type`, `id`, `key`, `name`), `can_edit`, `actions` and `rows` as for `matrix/`
+(rows carry `enabled_actions`), `columns` keyed by action name, each with `simple` and `others` as above, and
+`cells` keyed by object type then action: `cells["dcim.device"]["change"]`.
 
 ## Change sets
 
@@ -66,15 +86,19 @@ The response:
     {"principal": {"type": "user", "id": 7}, "object_type": "ipam.prefix", "action": "view", "granted": true}
   ],
   "edits": [
-    {"principal": {"type": "group", "id": 1}, "action": "view", "description": "Read access for the NOC"}
+    {"principal": {"type": "group", "id": 1}, "perm_id": 12, "constraints": {"tenant__slug": "acme"}}
   ]
 }
 ```
 
 - `changes`: cells to grant (`true`) or revoke (`false`). If a cell appears twice, the last entry wins.
-- `edits`: changes to a principal's simple permission for an action, as in the
-  [gear panel](matrix.md#the-gear-panel). Optional fields: `name`, `description`, `enabled`, `constraints` (an
-  object, a list of objects, or `null` to remove them), `add_actions`, `add_groups`, `add_users` (IDs).
+- `edits`: changes to one of a principal's permissions, as in the [gear panel](matrix.md#the-gear-panel). Give
+  `perm_id`, the ID of a permission assigned to the principal. The older form with `action` instead still works,
+  but only finds a permission holding that one action and nothing else, unconstrained: with permissions named by
+  action set (`noc_va`), it usually finds nothing and the plan warns. Give one of `perm_id` and `action`, not both.
+  An unknown `perm_id`, or a permission also assigned to groups or users you cannot see, is refused with HTTP 400. Optional fields: `name`, `description`, `enabled`, `constraints` (an object, a list of
+  objects, or `null` to remove them), `add_actions`, `add_groups`, `add_users` (IDs). An edit naming a permission
+  not assigned to the principal is left out, with a warning.
 
 `object_type` must be one NetBox allows in a permission. Unknown groups or users, invalid action names and invalid
 constraints are refused with HTTP 400.

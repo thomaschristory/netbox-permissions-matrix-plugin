@@ -17,7 +17,8 @@ With the right to change permissions, cells toggle and stage exactly as on the m
 the same plan. Rows and actions have **all** toggles. Custom actions are only enabled on the rows of models that
 register them.
 
-The gear next to each action opens the [gear panel](matrix.md#the-gear-panel) for this group and that action.
+The gear next to each action opens the [gear panel](matrix.md#the-gear-panel) with the group's permissions that grant
+that action, to edit their name, description, enabled flag and constraints.
 
 ## Who sees the tab
 

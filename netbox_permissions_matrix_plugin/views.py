@@ -39,7 +39,9 @@ class MatrixView(MatrixAccessMixin, View):
             request,
             "netbox_permissions_matrix_plugin/matrix.html",
             {
-                "action": request.GET.get("action", "view"),
+                # Without the action tabs the page only has the all-actions grid, whatever the URL says.
+                "action": request.GET.get("action", "*") if get_setting("show_action_tabs") else "*",
+                "show_tabs": get_setting("show_action_tabs"),
                 "can_edit": service.can_edit(request.user),
                 "api": api_urls(),
                 "show_users": get_setting("show_users_by_default"),

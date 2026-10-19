@@ -88,6 +88,10 @@ class Perm:
         """One principal, one action, no constraints: the only kind of permission the plugin grows."""
         return self.principals() == {ref} and self.actions == (action,) and not self.constrained
 
+    def is_simple(self, ref: PrincipalRef) -> bool:
+        """One principal, no constraints, enabled: a permission the plugin may grow or shrink, whatever its actions."""
+        return self.principals() == {ref} and self.enabled and not self.constrained
+
 
 @dataclass
 class Snapshot:
@@ -125,10 +129,11 @@ class CellChange:
 
 @dataclass(frozen=True)
 class PermEdit:
-    """A gear-panel edit of a principal's simple permission for one action."""
+    """A gear-panel edit of a principal's simple permission for one action, or of one of its permissions by ID."""
 
     principal: PrincipalRef
-    action: str
+    action: str = ""
+    perm_id: int | None = None
     name: Any = UNSET
     description: Any = UNSET
     enabled: Any = UNSET

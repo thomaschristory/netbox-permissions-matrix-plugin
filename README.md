@@ -5,8 +5,8 @@
 [![Python](https://img.shields.io/pypi/pyversions/netbox-permissions-matrix-plugin)](https://pypi.org/project/netbox-permissions-matrix-plugin/)
 
 A NetBox plugin that shows NetBox's object permissions as a matrix: object types down the side, groups (and
-optionally users) across the top, one checkbox per cell for the selected action. Ticking and unticking cells edits
-NetBox's own permissions, with a review of every change before it is written.
+optionally users) across the top, and in each cell one lettered chip per action (V, A, C, D, and custom actions).
+Clicking chips edits NetBox's own permissions, with a review of every change before it is written.
 
 **Documentation: https://thomaschristory.github.io/netbox-permissions-matrix-plugin/**
 
@@ -15,7 +15,9 @@ NetBox's own permissions, with a review of every change before it is written.
 ## Features
 
 - One page answers "what can this group do?" and "who can change prefixes?".
-- View, Add, Change, Delete and custom action tabs; bulk toggles per row, app and column.
+- Every action on one page, as lettered chips (V, A, C, D, R, S), with optional tabs per action; bulk toggles per row, app
+  and column.
+- New permissions are named after their actions: `noc_va` for view and add.
 - Edits native `ObjectPermission` records only. No models, no migrations; uninstalling leaves a normal setup.
 - Safe with shared permissions: a change for one group never changes another group's access.
 - Stage, review, apply: every created, changed or deleted permission is shown first and written in one transaction.

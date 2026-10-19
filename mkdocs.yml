@@ -49,6 +49,7 @@ nav:
   - Using the plugin:
       - The matrix: matrix.md
       - How changes map to permissions: changes.md
+      - Constraints: constraints.md
       - Who can: who-can.md
       - Group tab: group-tab.md
       - Export and import: export-import.md

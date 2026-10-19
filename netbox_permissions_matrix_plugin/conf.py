@@ -1,11 +1,14 @@
 PLUGIN_NAME = "netbox_permissions_matrix_plugin"
 
 DEFAULTS = {
-    # Name of the simple permissions the plugin creates for new grants. {principal} is the group name or username,
-    # {action} the action. A number is appended when the name is taken.
-    "new_permission_name": "{principal} | {action}",
+    # Name of the simple permissions the plugin creates for new grants. {principal} is the group name or username as a
+    # slug, {actions} the action letters (v, a, c, d, r for render_config, s for sync). A number is appended when the
+    # name is taken.
+    "new_permission_name": "{principal}_{actions}",
     # "admin" puts the menu item below Permissions in Admin > Authentication; "plugins" uses the Plugins menu.
     "menu_placement": "admin",
+    # Whether the matrix page also offers one tab per action (View, Add, ...) next to the all-actions grid.
+    "show_action_tabs": False,
     # Whether user columns are shown when the matrix opens.
     "show_users_by_default": False,
     # App labels whose object types get no row in the matrix (their grants are still kept intact).

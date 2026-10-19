@@ -1,14 +1,14 @@
 # Limitations
 
 The matrix shows and edits NetBox's object permissions. Some access in NetBox comes from elsewhere, and some
-permission setups do not fit in a grid of checkboxes. This page lists what to keep in mind.
+permission setups do not fit in a grid of chips. This page lists what to keep in mind.
 
 ## Access the matrix does not show
 
 - **Superusers** can do everything, whatever their permissions. The matrix does not draw them; the
   [who can](who-can.md) page lists them separately.
 - **`EXEMPT_VIEW_PERMISSIONS`** in NetBox's configuration lets everyone view the listed models without a permission.
-  The View tab shows only what permissions grant, so an exempt model can show "not granted" for a group whose members
+  The matrix shows only what permissions grant, so an exempt model can show "not granted" for a group whose members
   can still view it.
 - **Anonymous access** with `LOGIN_REQUIRED = False` is not a group and has no column.
 - **`DEFAULT_PERMISSIONS`** grants every authenticated user some access (by default, managing their own API tokens)
@@ -27,15 +27,24 @@ permission setups do not fit in a grid of checkboxes. This page lists what to ke
 
 - A constrained cell says "some objects". Which ones depends on each object, so the matrix cannot tick or untick
   them partly. Hover the cell to read the constraints.
-- Ticking a cell never adds constraints. Constraints are edited on the principal's simple permission in the
-  [gear panel](matrix.md#the-gear-panel), or on the classic permission page for any other permission.
+- Ticking a cell never adds constraints. Constraints are edited per permission in the
+  [gear panel](matrix.md#the-gear-panel), or on the classic permission page. A constraint covers every object type
+  and action of its permission; the matrix cannot constrain one cell on its own. See [Constraints](constraints.md).
 - An [import](export-import.md) never creates or changes constraints.
 
 ## Actions
 
-- Actions typed into "Additional actions" on the classic form show up as their own tabs. NetBox does not say which
-  models they apply to, so every row is enabled on those tabs.
+- Actions typed into "Additional actions" on the classic form show up as their own chips (and tabs, with `show_action_tabs`). NetBox does not
+  say which models they apply to, so every row is enabled for them.
 - An action name is at most 30 characters, lower case letters, digits and underscores, as in NetBox.
+
+## Names
+
+- Permission names come from the group name or username in lower case, with other characters turned into `_`. Two
+  groups called `NOC` and `noc` (or `N.O.C`) both give `noc_...`; the second gets a number (`noc_v 2`). Rename one
+  of them in the gear panel if that is confusing.
+- Custom actions other than render_config and sync use their first letter, so `run` and `render_config` both give
+  `r`, and their permissions are told apart by a number.
 
 ## Scale
 

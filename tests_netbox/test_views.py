@@ -1,3 +1,4 @@
+from django.test import override_settings
 from django.urls import reverse
 from utilities.testing import TestCase
 
@@ -22,13 +23,25 @@ class MatrixPageTest(TestCase):
     def test_needs_view_permission(self):
         self.assertEqual(self.client.get(reverse(MATRIX)).status_code, 403)
 
+    def test_action_tabs_are_off_by_default(self):
+        self.add_permissions(*VIEW)
+        html = self.client.get(reverse(MATRIX), {"action": "change"}).content.decode()
+        self.assertIn('data-action="*"', html)
+        self.assertNotIn("pm-tabs", html)
+
+    @override_settings(PLUGINS_CONFIG={"netbox_permissions_matrix_plugin": {"show_action_tabs": True}})
+    def test_action_tabs_when_enabled(self):
+        self.add_permissions(*VIEW)
+        html = self.client.get(reverse(MATRIX), {"action": "change"}).content.decode()
+        self.assertIn('data-action="change"', html)
+        self.assertIn("pm-tabs", html)
+
     def test_read_only_page(self):
         self.add_permissions(*VIEW)
-        response = self.client.get(reverse(MATRIX), {"action": "change"})
+        response = self.client.get(reverse(MATRIX))
         self.assertEqual(response.status_code, 200)
         html = response.content.decode()
         self.assertIn('data-can-edit="false"', html)
-        self.assertIn('data-action="change"', html)
         self.assertIn(reverse("plugins-api:netbox_permissions_matrix_plugin-api:matrix"), html)
         self.assertIn("netbox_permissions_matrix_plugin/matrix.js", html)
         self.assertIn("Permissions Matrix", html)
