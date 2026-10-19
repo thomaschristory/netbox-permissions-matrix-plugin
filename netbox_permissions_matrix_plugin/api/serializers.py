@@ -31,7 +31,8 @@ class CellChangeSerializer(serializers.Serializer):
 
 class PermEditSerializer(serializers.Serializer):
     principal = PrincipalSerializer()
-    action = serializers.RegexField(ACTION)
+    action = serializers.RegexField(ACTION, required=False)
+    perm_id = serializers.IntegerField(min_value=1, required=False)
     name = serializers.CharField(max_length=100, required=False)
     description = serializers.CharField(max_length=200, required=False, allow_blank=True)
     enabled = serializers.BooleanField(required=False)
@@ -49,9 +50,12 @@ class PermEditSerializer(serializers.Serializer):
 
     def to_internal_value(self, data):
         value = super().to_internal_value(data)
+        if "action" not in value and "perm_id" not in value:
+            raise serializers.ValidationError("Give an action or a perm_id.")
         return PermEdit(
             principal=value["principal"],
-            action=value["action"],
+            action=value.get("action", ""),
+            perm_id=value.get("perm_id"),
             name=value.get("name", UNSET),
             description=value.get("description", UNSET),
             enabled=value.get("enabled", UNSET),

@@ -129,10 +129,11 @@ class CellChange:
 
 @dataclass(frozen=True)
 class PermEdit:
-    """A gear-panel edit of a principal's simple permission for one action."""
+    """A gear-panel edit of a principal's simple permission for one action, or of one of its permissions by ID."""
 
     principal: PrincipalRef
-    action: str
+    action: str = ""
+    perm_id: int | None = None
     name: Any = UNSET
     description: Any = UNSET
     enabled: Any = UNSET

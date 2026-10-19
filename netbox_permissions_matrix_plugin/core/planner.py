@@ -246,7 +246,13 @@ def _grant(work: _Work, ref: PrincipalRef, ot: str, actions: set[str], template:
 
 def _edit(work: _Work, edit: PermEdit) -> None:
     pname = work.snap.name_of(edit.principal)
-    key = work.simple_key(edit.principal, edit.action)
+    if edit.perm_id is not None:
+        key = str(edit.perm_id)
+        if key not in work.perms or not work.perms[key].assigned_to(edit.principal):
+            work.warnings.append(f"Permission {edit.perm_id} is not assigned to {pname}; edit left out.")
+            return
+    else:
+        key = work.simple_key(edit.principal, edit.action)
     if key is None:
         work.warnings.append(f"{pname} has no permission of its own for {edit.action} to edit; tick a cell first.")
         return
@@ -268,7 +274,13 @@ def _edit(work: _Work, edit: PermEdit) -> None:
     after = dataclasses.replace(perm, **fields)
     if after == perm:
         return
-    if not after.is_simple_for(edit.principal, edit.action):
+    if edit.perm_id is not None:
+        if perm.is_simple(edit.principal) and not after.is_simple(edit.principal):
+            work.warnings.append(
+                f"With constraints or other assignees {after.name} is no longer simple: new grants of "
+                f"{', '.join(after.actions)} for {pname} will go into a new permission."
+            )
+    elif not after.is_simple_for(edit.principal, edit.action):
         work.warnings.append(
             f"After this change {after.name} is no longer simple (one principal, one action, no constraints): new "
             f"grants of {edit.action} for {pname} will go into a new permission."
@@ -311,7 +323,7 @@ def plan(
     for ref, ot in sorted(grants):
         _grant(work, ref, ot, grants[(ref, ot)], name_template)
     _drop_emptied(work)
-    for edit in sorted(edits, key=lambda e: (e.principal, e.action)):
+    for edit in sorted(edits, key=lambda e: (e.principal, e.action, e.perm_id or 0)):
         _edit(work, edit)
 
     operations = []

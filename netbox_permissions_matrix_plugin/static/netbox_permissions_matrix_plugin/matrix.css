@@ -403,3 +403,7 @@ button.pm-chip:hover {
 .pm-colhead-all .pm-colname {
   white-space: nowrap;
 }
+
+.pm-perm summary {
+  cursor: pointer;
+}
