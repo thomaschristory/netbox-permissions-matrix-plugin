@@ -39,7 +39,7 @@ class MatrixView(MatrixAccessMixin, View):
             request,
             "netbox_permissions_matrix_plugin/matrix.html",
             {
-                "action": request.GET.get("action", "view"),
+                "action": request.GET.get("action", "*"),
                 "can_edit": service.can_edit(request.user),
                 "api": api_urls(),
                 "show_users": get_setting("show_users_by_default"),

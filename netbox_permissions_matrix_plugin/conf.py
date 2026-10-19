@@ -1,9 +1,10 @@
 PLUGIN_NAME = "netbox_permissions_matrix_plugin"
 
 DEFAULTS = {
-    # Name of the simple permissions the plugin creates for new grants. {principal} is the group name or username,
-    # {action} the action. A number is appended when the name is taken.
-    "new_permission_name": "{principal} | {action}",
+    # Name of the simple permissions the plugin creates for new grants. {principal} is the group name or username as a
+    # slug, {actions} the action letters (v, a, c, d, r for render_config, s for sync). A number is appended when the
+    # name is taken.
+    "new_permission_name": "{principal}_{actions}",
     # "admin" puts the menu item below Permissions in Admin > Authentication; "plugins" uses the Plugins menu.
     "menu_placement": "admin",
     # Whether user columns are shown when the matrix opens.

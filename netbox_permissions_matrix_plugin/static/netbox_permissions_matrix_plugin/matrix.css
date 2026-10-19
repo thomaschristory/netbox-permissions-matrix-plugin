@@ -329,3 +329,77 @@ button.pm-cell:focus-visible {
 .pm-who-table th {
   vertical-align: middle;
 }
+
+/* All-actions grid: one lettered chip per action in each cell. */
+.pm-chips {
+  display: inline-flex;
+  gap: 0.15rem;
+  justify-content: center;
+}
+
+.pm-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: 1.3rem;
+  height: 1.3rem;
+  padding: 0;
+  border: 1px solid var(--pm-border);
+  border-radius: 0.25rem;
+  background: transparent;
+  color: var(--tblr-secondary, #667382);
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+button.pm-chip {
+  cursor: pointer;
+}
+
+button.pm-chip:hover {
+  border-color: var(--pm-staged);
+}
+
+/* The chip base rule comes after the shared state colours: restate them at chip specificity. */
+.pm-chip.pm-granted {
+  background: var(--pm-granted);
+  border-color: var(--pm-granted);
+  color: #fff;
+}
+
+.pm-chip.pm-constrained {
+  background: linear-gradient(135deg, var(--pm-constrained) 50%, transparent 50%);
+  border-color: var(--pm-constrained);
+  color: var(--tblr-body-color, #182433);
+}
+
+.pm-chip.pm-disabled {
+  background: var(--pm-disabled);
+  border-color: var(--pm-disabled);
+  color: var(--tblr-body-color, #182433);
+  opacity: 0.45;
+}
+
+/* An action that does not apply to the row keeps its slot so the letters line up down the column. */
+.pm-chip.pm-off {
+  visibility: hidden;
+}
+
+.pm-chip.pm-is-staged {
+  outline-width: 2px;
+  margin: 0;
+}
+
+.pm-head-chip {
+  background: var(--pm-muted);
+}
+
+.pm-colhead-all {
+  max-width: none;
+}
+
+.pm-colhead-all .pm-colname {
+  white-space: nowrap;
+}

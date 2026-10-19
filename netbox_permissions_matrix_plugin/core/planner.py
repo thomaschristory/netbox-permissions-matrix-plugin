@@ -2,7 +2,8 @@
 
 The rules are in docs/DESIGN.md ("How changes map to native permissions"). In short:
 
-- a grant goes into the principal's simple permission for that action, created if needed;
+- a grant goes into the principal's simple permission for the set of actions the object type ends up with, named
+  after that set ("netops_vac" for view, add and change), created if needed;
 - a revoke removes the cell from every permission covering it, splitting a permission when it also grants other
   cells or is shared with other principals, so nobody else's access changes.
 """
@@ -10,6 +11,7 @@ The rules are in docs/DESIGN.md ("How changes map to native permissions"). In sh
 from __future__ import annotations
 
 import dataclasses
+import re
 from collections import defaultdict
 from collections.abc import Iterable
 
@@ -17,7 +19,23 @@ from .model import GROUP, UNSET, CellChange, Operation, Perm, PermEdit, Plan, Pr
 
 NAME_MAX = 100  # ObjectPermission.name max_length
 DESCRIPTION_MAX = 200  # ObjectPermission.description max_length
-DEFAULT_NAME_TEMPLATE = "{principal} | {action}"
+DEFAULT_NAME_TEMPLATE = "{principal}_{actions}"
+ACTION_ORDER = ("view", "add", "change", "delete")
+ACTION_LETTERS = {"view": "v", "add": "a", "change": "c", "delete": "d", "render_config": "r", "sync": "s"}
+
+
+def canonical(actions: Iterable[str]) -> tuple[str, ...]:
+    """Reserved actions first, in CRUD order, then custom actions by name."""
+    rank = {a: i for i, a in enumerate(ACTION_ORDER)}
+    return tuple(sorted(set(actions), key=lambda a: (rank.get(a, len(rank)), a)))
+
+
+def action_letters(actions: Iterable[str]) -> str:
+    return "".join(ACTION_LETTERS.get(a, a[0]) for a in canonical(actions))
+
+
+def slug(name: str) -> str:
+    return re.sub(r"[^0-9a-z]+", "_", name.lower()).strip("_") or "principal"
 
 
 class _Work:
@@ -64,6 +82,15 @@ class _Work:
         del self.perms[key]
         self.reasons[key].append(reason)
 
+    def set_key(self, ref: PrincipalRef, actions: Iterable[str]) -> str | None:
+        """The principal's simple permission for exactly this set of actions."""
+        wanted = set(actions)
+        for key in self.ordered_keys():
+            perm = self.perms[key]
+            if perm.is_simple(ref) and set(perm.actions) == wanted:
+                return key
+        return None
+
     def simple_key(self, ref: PrincipalRef, action: str) -> str | None:
         for key in self.ordered_keys():
             if self.perms[key].is_simple_for(ref, action):
@@ -91,7 +118,29 @@ def _dedupe(changes: Iterable[CellChange]) -> list[CellChange]:
     return [last[k] for k in sorted(last)]
 
 
-def _revoke(work: _Work, ref: PrincipalRef, cells: set[tuple[str, str]]) -> None:
+def _place(work: _Work, ref: PrincipalRef, types: set[str], actions: Iterable[str], reason: str, template: str) -> None:
+    """Add object types to the principal's simple permission for this action set, created if needed."""
+    actions = canonical(actions)
+    key = work.set_key(ref, actions)
+    if key is not None:
+        perm = work.perms[key]
+        work.replace(key, dataclasses.replace(perm, object_types=perm.object_types | types), reason)
+        return
+    letters = action_letters(actions)
+    pname = slug(work.snap.name_of(ref))
+    work.create(
+        Perm(
+            id=None,
+            name=work.unique_name(template.format(principal=pname, actions=letters, action=letters)),
+            actions=actions,
+            object_types=frozenset(types),
+            **_assign(ref),
+        ),
+        reason,
+    )
+
+
+def _revoke(work: _Work, ref: PrincipalRef, cells: set[tuple[str, str]], template: str) -> None:
     pname = work.snap.name_of(ref)
     for key in work.ordered_keys():
         perm = work.perms[key]
@@ -111,6 +160,21 @@ def _revoke(work: _Work, ref: PrincipalRef, cells: set[tuple[str, str]]) -> None
         cells_text = ", ".join(f"{a} {ot}" for ot, a in sorted(removed))
         exclusive = perm.principals() == {ref}
 
+        if perm.is_simple(ref):
+            # A simple permission keeps the object types that still have its exact actions; the others move to the
+            # simple permission for the actions they keep.
+            same = set().union(*(types for actions, types in ordered if set(actions) == set(perm.actions)))
+            work.replace(
+                key, dataclasses.replace(perm, object_types=frozenset(same)), f"Revoke {cells_text} for {pname}"
+            )
+            if not same:
+                work.emptied.add(key)
+            for actions, types in ordered:
+                if set(actions) != set(perm.actions):
+                    _place(
+                        work, ref, types, actions, f"Keep {', '.join(actions)} for {pname} after {cells_text}", template
+                    )
+            continue
         if exclusive and not ordered:
             # Emptied, not deleted yet: a grant in the same change set may reuse it (see _drop_emptied).
             work.replace(key, dataclasses.replace(perm, object_types=frozenset()), f"Revoke {cells_text} for {pname}")
@@ -152,33 +216,32 @@ def _drop_emptied(work: _Work) -> None:
             work.delete(key, f"Nothing left in {perm.name}")
 
 
-def _grant(work: _Work, change: CellChange, name_template: str) -> None:
-    ref, ot, action = change.principal, change.object_type, change.action
-    covering = [p for p in work.perms.values() if p.covers(ref, ot, action)]
-    if any(p.enabled and not p.constrained for p in covering):
+def _grant(work: _Work, ref: PrincipalRef, ot: str, actions: set[str], template: str) -> None:
+    needed = {
+        a
+        for a in actions
+        if not any(p.enabled and not p.constrained and p.covers(ref, ot, a) for p in work.perms.values())
+    }
+    if not needed:
         return
     pname = work.snap.name_of(ref)
-    key = work.simple_key(ref, action)
-    if key is not None:
-        perm = work.perms[key]
-        work.replace(
-            key, dataclasses.replace(perm, object_types=perm.object_types | {ot}), f"Grant {action} {ot} to {pname}"
-        )
-        if not perm.enabled:
-            work.warnings.append(
-                f"{perm.name} is disabled: the grant of {action} {ot} stays inactive until it is enabled."
-            )
-        return
-    work.create(
-        Perm(
-            id=None,
-            name=work.unique_name(name_template.format(principal=pname, action=action)),
-            actions=(action,),
-            object_types=frozenset({ot}),
-            **_assign(ref),
-        ),
-        f"Grant {action} {ot} to {pname}",
+    text = ", ".join(canonical(needed))
+    have: set[str] = set()
+    source = next(
+        (k for k in work.ordered_keys() if work.perms[k].is_simple(ref) and ot in work.perms[k].object_types), None
     )
+    if source is not None:
+        # The object type moves to the permission for its new, larger action set.
+        perm = work.perms[source]
+        have = set(perm.actions)
+        work.replace(
+            source,
+            dataclasses.replace(perm, object_types=perm.object_types - {ot}),
+            f"Move {ot} for {pname} to the permission with {text} added",
+        )
+        if not work.perms[source].object_types:
+            work.emptied.add(source)
+    _place(work, ref, {ot}, have | needed, f"Grant {text} on {ot} to {pname}", template)
 
 
 def _edit(work: _Work, edit: PermEdit) -> None:
@@ -240,10 +303,13 @@ def plan(
         if not change.granted:
             revokes[change.principal].add((change.object_type, change.action))
     for ref in sorted(revokes):
-        _revoke(work, ref, revokes[ref])
+        _revoke(work, ref, revokes[ref], name_template)
+    grants: dict[tuple[PrincipalRef, str], set[str]] = defaultdict(set)
     for change in changes:
         if change.granted:
-            _grant(work, change, name_template)
+            grants[(change.principal, change.object_type)].add(change.action)
+    for ref, ot in sorted(grants):
+        _grant(work, ref, ot, grants[(ref, ot)], name_template)
     _drop_emptied(work)
     for edit in sorted(edits, key=lambda e: (e.principal, e.action)):
         _edit(work, edit)

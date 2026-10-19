@@ -2,7 +2,7 @@
 {# The matrix is drawn by matrix.js from the REST API; this is its frame, shared by the page and the group tab. #}
 <div class="pm-root"
      data-mode="{{ mode }}"
-     data-action="{{ action|default:'view' }}"
+     data-action="{{ action|default:'*' }}"
      data-can-edit="{{ can_edit|yesno:'true,false' }}"
      data-show-users="{{ show_users|yesno:'true,false' }}"
      {% if principal_key %}data-principal="{{ principal_key }}"{% endif %}

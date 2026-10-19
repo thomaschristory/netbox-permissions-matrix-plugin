@@ -83,6 +83,8 @@ def matrix_payload(user, query: MatrixQuery) -> dict:
     if query.app_labels:
         row_list = [r for r in row_list if r.app_label in query.app_labels]
     tabs = loader.action_tabs(snap, row_list)
+    if query.action == "*":
+        return matrix.build_all(snap, row_list, columns_for(snap, user, query), tabs, can_edit(user))
     tab = next((t for t in tabs if t.name == query.action), None) or loader.ActionTab(
         query.action, query.action, freeform=True
     )
