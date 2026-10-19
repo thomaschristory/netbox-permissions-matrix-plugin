@@ -26,7 +26,7 @@ A user with at least one of the three can stage changes, import a file and revie
 user's permissions, constraints included, both before and after the write, as NetBox's own edit views do. If any
 operation is not allowed, the whole plan is rolled back and nothing is written.
 
-A user with none of the three sees the matrix read-only: no checkboxes, no review.
+A user with none of the three sees the matrix read-only: chips do not toggle, no review.
 
 Superusers bypass all of these checks, as everywhere in NetBox.
 

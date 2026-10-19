@@ -64,7 +64,7 @@ Each chip, or box on a single-action tab, shows one of these states:
 |------|-------|---------|
 | empty | Not granted | No permission covers the cell. |
 | filled green | Granted | At least one enabled permission without constraints covers the cell. |
-| half filled | Constrained | Only permissions with constraints cover the cell: access to some objects, not all. |
+| half filled | Constrained | Only permissions with [constraints](constraints.md) cover the cell: access to some objects, not all. |
 | ticked, dimmed | Disabled | Only disabled permissions cover the cell. NetBox ignores them. |
 | coloured outline | Staged | Changed on the page, not applied yet. |
 
@@ -118,9 +118,10 @@ to some object types and full access to others, keep them in separate permission
 to a permission, use its page in NetBox or the [REST API](api.md).
 
 Constraints use NetBox's format: an object, or a list of objects combined with OR, and `$user` for the current user.
+[Constraints](constraints.md) explains them in full, with recipes.
 They are checked against every object type of the permission, as on the classic form.
 
 ## Read-only mode
 
-Users who may view permissions but not add, change or delete them see the matrix without checkboxes. See
+Users who may view permissions but not add, change or delete them see the matrix read-only: chips show their state but do not toggle, and there is no review. See
 [Permissions](permissions.md).

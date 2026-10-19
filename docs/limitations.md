@@ -1,7 +1,7 @@
 # Limitations
 
 The matrix shows and edits NetBox's object permissions. Some access in NetBox comes from elsewhere, and some
-permission setups do not fit in a grid of checkboxes. This page lists what to keep in mind.
+permission setups do not fit in a grid of chips. This page lists what to keep in mind.
 
 ## Access the matrix does not show
 
@@ -29,7 +29,7 @@ permission setups do not fit in a grid of checkboxes. This page lists what to ke
   them partly. Hover the cell to read the constraints.
 - Ticking a cell never adds constraints. Constraints are edited per permission in the
   [gear panel](matrix.md#the-gear-panel), or on the classic permission page. A constraint covers every object type
-  and action of its permission; the matrix cannot constrain one cell on its own.
+  and action of its permission; the matrix cannot constrain one cell on its own. See [Constraints](constraints.md).
 - An [import](export-import.md) never creates or changes constraints.
 
 ## Actions

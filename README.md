@@ -5,8 +5,8 @@
 [![Python](https://img.shields.io/pypi/pyversions/netbox-permissions-matrix-plugin)](https://pypi.org/project/netbox-permissions-matrix-plugin/)
 
 A NetBox plugin that shows NetBox's object permissions as a matrix: object types down the side, groups (and
-optionally users) across the top, one checkbox per cell for the selected action. Ticking and unticking cells edits
-NetBox's own permissions, with a review of every change before it is written.
+optionally users) across the top, and in each cell one lettered chip per action (V, A, C, D, and custom actions).
+Clicking chips edits NetBox's own permissions, with a review of every change before it is written.
 
 **Documentation: https://thomaschristory.github.io/netbox-permissions-matrix-plugin/**
 

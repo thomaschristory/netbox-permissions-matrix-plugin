@@ -10,7 +10,7 @@ groups and users, optionally narrowed by constraints. That model is powerful but
 the NOC group change?" or "who can delete prefixes?" means opening permissions one by one.
 
 The plugin shows the same data as a matrix: object types down the side, groups (and optionally users) across the
-top, one checkbox per cell for the selected action. Ticking and unticking cells edits the native permissions.
+top, one lettered chip per action in each cell. Ticking and unticking chips edits the native permissions.
 
 ## Goals
 
@@ -286,7 +286,7 @@ The plugin enforces NetBox's own permissions on the objects it reads and writes:
 - Applying a plan needs `users.add_objectpermission`, `users.change_objectpermission` or
   `users.delete_objectpermission` for each operation it contains, checked through NetBox's restricted querysets, so
   constraints on those permissions are honoured. If any operation is not allowed, nothing is written.
-- Without any write permission the page is read-only: no checkboxes, no review button.
+- Without any write permission the page is read-only: chips show states but do not toggle, no review button.
 
 ## Change history
 

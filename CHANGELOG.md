@@ -12,6 +12,8 @@ versioning: [SemVer](https://semver.org/).
   it.
 - `show_action_tabs` setting, off by default: brings back the View, Add, Change, Delete and custom action tabs next
   to All actions.
+- Constraints page in the documentation: how NetBox constraints work, how the matrix shows them, how to set and
+  remove them, with recipes.
 - Gear panel lists the principal's permissions and edits any of them: name, description, enabled and constraints.
   Edits in the REST API can name a permission by `perm_id`.
 

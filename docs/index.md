@@ -1,8 +1,9 @@
 # netbox-permissions-matrix-plugin
 
 A NetBox plugin that shows NetBox's object permissions as a matrix: object types down the side, groups (and
-optionally users) across the top, and one checkbox per cell for the selected action. Ticking and unticking cells
-edits NetBox's own permissions, with a review of every change before it is written.
+optionally users) across the top, and in each cell one lettered chip per action (V for view, A add, C change, D
+delete, and custom actions). Clicking chips edits NetBox's own permissions, with a review of every change before it
+is written.
 
 !!! warning "Pre-release"
     The plugin is below 1.0. Read the review dialog before applying changes, and keep a database backup, as you
@@ -10,9 +11,13 @@ edits NetBox's own permissions, with a review of every change before it is writt
 
 ## What it does
 
-- Reads every NetBox permission and shows, for each group and object type, whether the selected action is
-  granted, granted only under constraints, or granted only by a disabled permission.
-- Switches the whole matrix between View, Add, Change, Delete and any custom action with one click.
+- Reads every NetBox permission and shows, for each group, object type and action, whether it is granted, granted
+  only under constraints, or granted only by a disabled permission.
+- Shows every action on one page, with toggles per row, column and app for one action or all of them. Tabs with
+  one action each can be switched on in the [configuration](configuration.md).
+- Names the permissions it creates after their actions: `noc_va` holds what NOC may view and add.
+- Edits names, descriptions, the enabled flag and [constraints](constraints.md) of a group's permissions from a
+  panel on the page.
 - Edits NetBox's own permission records. It stores nothing of its own: a change made in the matrix is visible on
   the classic Permissions page, and uninstalling the plugin leaves a normal permission setup.
 - Never changes what another group or user can do. Unticking a cell granted by a permission shared with other

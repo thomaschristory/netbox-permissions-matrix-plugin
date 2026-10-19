@@ -92,7 +92,7 @@ NOC ends with exactly what it had minus "change Site". Ops does not change at al
 
 - Change a permission you did not touch through a cell or the gear panel.
 - Merge or tidy existing permissions.
-- Add or change constraints, except through the gear panel.
+- Add or change constraints, except through the gear panel (see [Constraints](constraints.md)).
 - Rename a permission whose name you changed by hand.
 - Change group membership or create groups or users.
 
