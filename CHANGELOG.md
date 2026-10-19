@@ -5,6 +5,8 @@ versioning: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-19
+
 ### Added
 
 - All actions grid, now the matrix page: every action in one grid, one lettered chip per action in each cell, with
@@ -49,5 +51,6 @@ versioning: [SemVer](https://semver.org/).
   group tab, export and import, permissions, REST API, limitations, troubleshooting and development.
 - Project scaffold: plugin configuration, settings, CI, release and documentation workflows, development stack.
 
-[Unreleased]: https://github.com/thomaschristory/netbox-permissions-matrix-plugin/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/thomaschristory/netbox-permissions-matrix-plugin/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/thomaschristory/netbox-permissions-matrix-plugin/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/thomaschristory/netbox-permissions-matrix-plugin/releases/tag/v0.1.0
