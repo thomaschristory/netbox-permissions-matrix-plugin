@@ -12,7 +12,8 @@ export TOKEN="nbt_xxxxxxxx.yyyyyyyy"
 curl -s -H "Authorization: Bearer $TOKEN" -H "Accept: application/json" "$NETBOX/api/plugins/permissions-matrix/matrix/?action=change"
 ```
 
-The [same permissions](permissions.md) as on the page apply.
+The [same permissions](permissions.md) as on the page apply. `plan/` and `apply/` also need a token with
+**Write enabled** set: a read-only token can read the matrix but not plan or apply changes.
 
 ## `GET matrix/`
 
@@ -121,7 +122,7 @@ permissions created, changed and deleted (`op`, `id`, `name`).
 |--------|---------|
 | 200 | Applied. Everything in `written` is saved. |
 | 400 | The change set is invalid, or `token` is missing. |
-| 403 | You may not use the matrix, or not add, change or delete one of the permissions in the plan. Nothing was written. |
+| 403 | The token is not write-enabled, you may not use the matrix, or not add, change or delete one of the permissions in the plan. Nothing was written. |
 | 409 | A permission the plan depends on changed after `plan/`. Nothing was written: plan again. |
 
 The whole apply runs in one database transaction, with the permission table locked against other writers, so it

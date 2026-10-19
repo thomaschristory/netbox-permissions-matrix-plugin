@@ -3,7 +3,7 @@ from django.db import transaction
 from rest_framework import status
 from rest_framework.exceptions import PermissionDenied as APIPermissionDenied
 from rest_framework.exceptions import ValidationError as APIValidationError
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import SAFE_METHODS, BasePermission, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -11,6 +11,19 @@ from .. import loader, service
 from ..applier import apply_plan
 from ..conf import get_setting
 from .serializers import ChangeSetSerializer
+
+
+class WriteEnabled(BasePermission):
+    """Refuse API tokens without write enabled on unsafe methods, as NetBox's own write endpoints do.
+
+    NetBox's TokenWritePermission also refuses session authentication, which the matrix page uses (with CSRF).
+    """
+
+    message = "This API token is not write-enabled."
+
+    def has_permission(self, request, view):
+        token = request.auth
+        return request.method in SAFE_METHODS or token is None or bool(getattr(token, "write_enabled", False))
 
 
 def _ints(values):
@@ -68,7 +81,7 @@ class MatrixView(APIView):
 class PlanView(APIView):
     """Dry run: the operations a change set would perform, and the token to apply them with."""
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, WriteEnabled]
 
     @_guard
     def post(self, request):
@@ -81,7 +94,7 @@ class PlanView(APIView):
 class ApplyView(APIView):
     """Apply a change set in one transaction, if nothing changed since it was planned."""
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, WriteEnabled]
 
     @_guard
     def post(self, request):

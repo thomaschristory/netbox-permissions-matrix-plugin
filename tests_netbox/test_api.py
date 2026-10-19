@@ -133,6 +133,21 @@ class PlanApplyTest(APITestBase):
         self.assertEqual(self.post(APPLY, {"changes": changes, "edits": [], "token": token}).status_code, 403)
         self.assertEqual(perm_state(self.shared), self.before)
 
+    def test_read_only_token_cannot_plan_or_apply(self):
+        from rest_framework.test import APIClient
+        from users.constants import TOKEN_PREFIX
+        from users.models import Token
+
+        token = Token.objects.create(user=self.user, write_enabled=False)
+        client = APIClient()
+        header = {"HTTP_AUTHORIZATION": f"Bearer {TOKEN_PREFIX}{token.key}.{token.token}"}
+        self.assertEqual(client.get(reverse(MATRIX), **header).status_code, 200)
+        body = {"changes": [self.change(self.noc, "dcim.site", "change", False)], "token": "0" * 64}
+        for name in (PLAN, APPLY):
+            with self.subTest(name=name):
+                self.assertEqual(client.post(reverse(name), body, format="json", **header).status_code, 403)
+        self.assertEqual(perm_state(self.shared), self.before)
+
     def test_read_only_user_cannot_plan(self):
         for name in WRITE:
             ObjectPermission.objects.filter(name=name).delete()
