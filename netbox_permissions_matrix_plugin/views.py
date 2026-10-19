@@ -1,5 +1,9 @@
+import datetime
+
+import yaml
 from django.conf import settings
 from django.contrib.auth.mixins import AccessMixin
+from django.http import HttpResponse
 from django.shortcuts import render
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
@@ -26,7 +30,7 @@ class MatrixAccessMixin(AccessMixin):
 
 
 def api_urls() -> dict:
-    return {name: reverse(f"{API}:{name}") for name in ("matrix", "principal", "plan", "apply")}
+    return {name: reverse(f"{API}:{name}") for name in ("matrix", "principal", "plan", "apply", "import")}
 
 
 class MatrixView(MatrixAccessMixin, View):
@@ -41,8 +45,32 @@ class MatrixView(MatrixAccessMixin, View):
                 "show_users": get_setting("show_users_by_default"),
                 "pm_version": __version__,
                 "who_can_url": reverse("plugins:netbox_permissions_matrix_plugin:who_can", args=["__ot__"]),
+                "export_url": reverse("plugins:netbox_permissions_matrix_plugin:export"),
             },
         )
+
+
+def _ints(values) -> tuple[int, ...]:
+    return tuple(int(v) for v in values if v.isdigit())
+
+
+class ExportView(MatrixAccessMixin, View):
+    """The matrix as a YAML file, for the columns and rows the page shows, across every action."""
+
+    def get(self, request):
+        params = request.GET
+        query = service.MatrixQuery(
+            include_users=params.get("users") == "1",
+            group_ids=_ints(params.getlist("group_id")),
+            user_ids=_ints(params.getlist("user_id")),
+            app_labels=tuple(a for a in params.getlist("app") if a),
+        )
+        doc = service.export_payload(request.user, query, params.get("q", ""))
+        body = yaml.safe_dump(doc, sort_keys=False, allow_unicode=True, default_flow_style=False)
+        response = HttpResponse(body, content_type="application/yaml; charset=utf-8")
+        filename = f"permissions-matrix-{datetime.date.today():%Y-%m-%d}.yaml"
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+        return response
 
 
 class WhoCanView(MatrixAccessMixin, View):

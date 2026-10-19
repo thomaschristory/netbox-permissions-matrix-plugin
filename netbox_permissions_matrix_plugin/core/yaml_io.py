@@ -134,6 +134,12 @@ def import_changes(snap: Snapshot, doc, valid_object_types: set[str]) -> tuple[l
                             f"{label} {action} {ot} is constrained or disabled in the file but not granted here; "
                             "left unchanged (the import never creates constraints)."
                         )
+                    elif state is CellState.GRANTED:
+                        warnings.append(
+                            f"{label} {action} {ot} is constrained or disabled in the file but granted without "
+                            "constraints here; left unchanged, so it grants more than the file. Revoke it in the "
+                            "matrix and constrain it in the permission if that is not intended."
+                        )
                 elif state is not CellState.NONE:
                     changes.append(CellChange(ref, ot, action, False))
     return changes, warnings, errors

@@ -80,6 +80,17 @@ def test_constrained_entry_with_nothing_on_the_target_warns():
     assert any("ipam.prefix" in w and "unchanged" in w for w in warnings)
 
 
+def test_constrained_entry_granted_without_constraints_here_warns():
+    # The file limits NOC's change on prefixes; the target grants it outright. The cell is kept (the import never
+    # creates constraints) but the review must say the target grants more than the file.
+    snap = snapshot(perm(1, "wide", ["change"], ["ipam.prefix"], NOC))
+    doc = export_doc(base(), TYPES, [NOC], ["change"])
+    doc["grants"] = {}
+    changes, warnings, _ = import_changes(snap, doc, set(TYPES))
+    assert changes == []
+    assert any("ipam.prefix" in w and "without constraints" in w for w in warnings)
+
+
 def test_unknown_principals_and_object_types_are_errors():
     snap = base()
     doc = {

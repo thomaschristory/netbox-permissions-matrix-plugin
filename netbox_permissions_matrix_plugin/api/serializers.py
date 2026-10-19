@@ -66,3 +66,7 @@ class ChangeSetSerializer(serializers.Serializer):
     changes = CellChangeSerializer(many=True, required=False, default=list)
     edits = PermEditSerializer(many=True, required=False, default=list)
     token = serializers.CharField(required=False, max_length=64)
+
+
+class ImportSerializer(serializers.Serializer):
+    yaml = serializers.CharField(trim_whitespace=False)

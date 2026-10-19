@@ -244,3 +244,66 @@ def who_can(user, label: str) -> dict:
         "effective": effective,
         "superusers": User.objects.filter(pk__in=users, is_superuser=True, is_active=True).order_by("username"),
     }
+
+
+def search_rows(row_list, needle: str):
+    """The page's search box: a case-insensitive match on the label, the object type or the app name."""
+    needle = needle.strip().lower()
+    if not needle:
+        return row_list
+    return [r for r in row_list if needle in f"{r.label} {r.object_type} {r.app_name}".lower()]
+
+
+def export_payload(user, query: MatrixQuery, search: str = "") -> dict:
+    """The matrix as a portable document: every action, for the columns and rows the page shows."""
+    from .core.yaml_io import export_doc
+
+    check_view(user)
+    snap = loader.load_snapshot(user_ids=query.user_ids)
+    row_list = loader.rows(get_setting("hidden_apps"))
+    if query.app_labels:
+        row_list = [r for r in row_list if r.app_label in query.app_labels]
+    row_list = search_rows(row_list, search)
+    principals = columns_for(snap, user, query)
+    if query.group_ids or query.user_ids:
+        # Columns picked on the page: exactly those, whether groups, users or both.
+        picked = {PrincipalRef(GROUP, g) for g in query.group_ids} | {PrincipalRef(USER, u) for u in query.user_ids}
+        principals = [r for r in principals if r in picked]
+    actions = [t.name for t in loader.action_tabs(snap, row_list)]
+    return export_doc(snap, [r.object_type for r in row_list], principals, actions)
+
+
+def import_for(user, doc) -> dict:
+    """Cell changes that make a document's scope true here. Nothing is written: the page stages them for review."""
+    from .core.yaml_io import import_changes
+
+    check_edit(user)
+    named = []
+    scope = doc.get("scope") if isinstance(doc, dict) else None
+    if isinstance(scope, dict) and isinstance(scope.get("principals"), list):
+        named = [p.get("name") for p in scope["principals"] if isinstance(p, dict) and p.get("type") == USER]
+    usernames = [n for n in named if isinstance(n, str)]
+    snap = loader.load_snapshot(user_ids=list(User.objects.filter(username__in=usernames).values_list("pk", flat=True)))
+    changes, warnings, errors = import_changes(snap, doc, {r.object_type for r in loader.rows()})
+
+    # Principals this user may not see are reported exactly like ones that do not exist.
+    groups, users = visible_groups(user), visible_users(user)
+    hidden = {r for r in snap.principals if r.id not in (groups if r.kind == GROUP else users)}
+    for ref in sorted(hidden, key=lambda r: (r.kind, snap.name_of(r))):
+        if {"type": ref.kind, "name": snap.name_of(ref)} in (scope or {}).get("principals", []):
+            errors.append(f"Unknown {ref.kind} {snap.name_of(ref)!r}: its entries are skipped.")
+    changes = [c for c in changes if c.principal not in hidden]
+    return {
+        "changes": [
+            {
+                "principal": {"type": c.principal.kind, "id": c.principal.id},
+                "name": snap.name_of(c.principal),
+                "object_type": c.object_type,
+                "action": c.action,
+                "granted": c.granted,
+            }
+            for c in changes
+        ],
+        "warnings": warnings,
+        "errors": errors,
+    }
