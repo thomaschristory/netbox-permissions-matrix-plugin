@@ -45,6 +45,14 @@ nav:
   - Getting started:
       - Installation: installation.md
       - Configuration: configuration.md
+  - Using the plugin:
+      - The matrix: matrix.md
+      - How changes map to permissions: changes.md
+      - Who can: who-can.md
+      - Permissions: permissions.md
+      - REST API: api.md
+  - Operations:
+      - Troubleshooting: troubleshooting.md
   - Project:
       - Design: DESIGN.md
       - Changelog: changelog.md

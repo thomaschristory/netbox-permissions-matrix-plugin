@@ -7,4 +7,8 @@ versioning: [SemVer](https://semver.org/).
 
 ### Added
 
+- Change planner: turns matrix cell changes into create, update and delete operations on NetBox's own
+  permissions, splitting shared permissions so no other group or user changes access.
+- REST API: `matrix/`, `plan/` and `apply/` under `/api/plugins/permissions-matrix/`, with a version token against
+  concurrent changes and NetBox permission checks on every operation.
 - Project scaffold: plugin configuration, settings, CI, release and documentation workflows, development stack.
