@@ -35,7 +35,9 @@ inactive until the permission is enabled.
 Unticking removes the cell from **every** permission that covers it: enabled or disabled, with or without
 constraints. For each of those permissions:
 
-- If the permission grants nothing else to this principal, and nobody else has it, it is deleted.
+- If the permission grants nothing else to this principal, and nobody else has it, it is deleted. When the same
+  change set ticks another cell that this permission would take (moving a grant from one object type to another),
+  the permission is kept and changed instead, so its name, ID and settings survive.
 - If it grants other cells but belongs to this principal only, it is rewritten in place to keep the other cells.
   When the cells left cannot be expressed as one permission (because object types keep different actions), the
   plugin creates one more permission per extra combination.

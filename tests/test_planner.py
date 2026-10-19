@@ -114,6 +114,30 @@ def test_revoke_last_cell_of_an_exclusive_permission_deletes_it():
     assert delete.key == "1"
 
 
+def test_moving_the_only_cell_of_a_simple_permission_keeps_the_permission():
+    # Revoke site and grant rack in one change set: the same permission, a different object type. Deleting it and
+    # creating "NOC | view 2" would lose its ID and anything set on it in the gear panel.
+    snap = snapshot(perm(1, "NOC | view", ["view"], ["dcim.site"], NOC, description="kept"))
+    (update,) = plan(snap, [revoke(NOC, "dcim.site", "view"), grant(NOC, "dcim.rack", "view")]).operations
+    assert update.op == "update" and update.key == "1"
+    assert update.after.object_types == {"dcim.rack"}
+    assert (update.after.name, update.after.description) == ("NOC | view", "kept")
+
+
+def test_emptied_permission_is_still_deleted_when_nothing_reuses_it():
+    snap = snapshot(perm(1, "NOC | view", ["view"], ["dcim.site"], NOC))
+    ops = plan(snap, [revoke(NOC, "dcim.site", "view"), grant(NOC, "dcim.rack", "change")]).operations
+    assert [(o.op, o.key) for o in ops] == [("delete", "1"), ("create", "new-1")]
+    assert any("nothing left" in r.lower() for r in ops[0].reasons)
+
+
+def test_edit_of_an_emptied_permission_warns():
+    snap = snapshot(perm(1, "NOC | view", ["view"], ["dcim.site"], NOC))
+    result = plan(snap, [revoke(NOC, "dcim.site", "view")], [PermEdit(NOC, "view", description="x")])
+    assert [o.op for o in result.operations] == ["delete"]
+    assert any("tick a cell first" in w for w in result.warnings)
+
+
 def test_revoke_from_an_exclusive_multi_type_permission_updates_in_place():
     snap = snapshot(perm(1, "NOC | view", ["view"], ["dcim.device", "dcim.site"], NOC))
     (update,) = plan(snap, [revoke(NOC, "dcim.device", "view")]).operations

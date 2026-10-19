@@ -181,7 +181,7 @@ For each permission P that covers the revoked cells of principal p (constrained 
    those object types and those actions. This is the smallest set of rectangles that represents the remainder
    exactly when actions are kept per object type.
 4. If P is assigned to p only:
-   - remainder empty: delete P;
+   - remainder empty: delete P, unless a grant in the same change set reuses it as the simple permission;
    - otherwise: rewrite P in place to the largest group (keeping its name, description, enabled and constraints)
      and create one new permission per other group.
 5. If P is shared with other principals: remove p from P, so the others keep exactly what they had, and create one
