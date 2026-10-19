@@ -33,7 +33,8 @@
   const listParam = (name) => params.getAll(name).filter(Boolean);
 
   const state = {
-    action: params.get("action") || root.dataset.action || "*",
+    // The server sends "*" when the action tabs are off, so the URL cannot pick a single action then.
+    action: $(".pm-tabs") ? params.get("action") || root.dataset.action || "*" : "*",
     includeUsers: params.has("users") ? params.get("users") === "1" : root.dataset.showUsers === "true",
     // Column keys picked in the column dialog ("group:3", "user:7"); null shows every column.
     shown: params.has("group_id") || params.has("user_id")
@@ -97,7 +98,7 @@
   function filterParams() {
     const next = new URLSearchParams();
     if (mode === "matrix") {
-      next.set("action", state.action);
+      if ($(".pm-tabs")) next.set("action", state.action);
       if (state.includeUsers) next.set("users", "1");
       if (state.shown) {
         for (const key of state.shown) {

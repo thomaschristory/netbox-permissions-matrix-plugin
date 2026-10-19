@@ -15,7 +15,7 @@ NetBox's own permissions, with a review of every change before it is written.
 ## Features
 
 - One page answers "what can this group do?" and "who can change prefixes?".
-- Every action on one page, as lettered chips (V, A, C, D, R, S), or one action per tab; bulk toggles per row, app
+- Every action on one page, as lettered chips (V, A, C, D, R, S), with optional tabs per action; bulk toggles per row, app
   and column.
 - New permissions are named after their actions: `noc_va` for view and add.
 - Edits native `ObjectPermission` records only. No models, no migrations; uninstalling leaves a normal setup.

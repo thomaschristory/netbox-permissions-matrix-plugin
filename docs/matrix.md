@@ -5,7 +5,7 @@ Open **Admin > Authentication > Permissions Matrix**.
 ![The matrix with every action, only rows with grants](img/matrix.png)
 
 ```
-[All actions] [View] [Add] [Change] [Delete] [Render Config] [Sync]   [search] [apps] [ ] Only rows with grants ...
+[search] [apps] [ ] Only rows with grants  [ ] Users  [Columns]  [Export]  [Import]
 
                             |   NOC ⚙       |   Ops ⚙       |
                             | [V A C D R S] | [V A C D R S] |
@@ -37,8 +37,9 @@ the rows whose model has them; the slot stays empty elsewhere so the letters lin
 found in existing permissions (typed into "Additional actions" on the classic form) get a chip on every row, with
 their first letter: NetBox cannot tell which models they apply to.
 
-The other tabs show one action at a time, with one box per cell, as before. The active tab is kept in the URL
-(`?action=change`), so a tab can be bookmarked; the All actions tab is `?action=*` or no parameter.
+With the `show_action_tabs` [setting](configuration.md) on, tabs next to All actions show one action at a time, with
+one box per cell. The active tab is kept in the URL (`?action=change`), so a tab can be bookmarked; All actions is
+`?action=*` or no parameter. The setting is off by default, and the page then shows only the all-actions grid.
 
 ## Rows and columns
 
@@ -77,7 +78,7 @@ is only information: the user column changes the user's own permissions, never t
 Click a chip (or a box on a single-action tab) to toggle it between granted and not granted. A constrained or
 disabled one becomes granted on the first click; the second click revokes it completely.
 
-On the All actions tab, each column header has a row of letters: click one to toggle that action for the whole
+In the all-actions grid, each column header has a row of letters: click one to toggle that action for the whole
 column. Each row and app section reads **all V A C D ...**: **all** toggles every action in every visible column,
 and a letter toggles only that action, for example **D** on the Device row gives or takes delete on Device for
 every group shown. On a single-action tab, column headers, rows and app sections have an **all** toggle for that
@@ -98,8 +99,8 @@ nothing is written and the page asks you to reload.
 
 ## The gear panel
 
-The gear next to a column name opens a panel listing the group's or user's permissions: all of them on the All
-actions tab, the ones granting the action on a single-action tab. Each shows its actions and how many object types
+The gear next to a column name opens a panel listing the group's or user's permissions: all of them in the
+all-actions grid, the ones granting the action on a single-action tab. Each shows its actions and how many object types
 it covers, and links to its page in NetBox. Open one to edit:
 
 - name and description;

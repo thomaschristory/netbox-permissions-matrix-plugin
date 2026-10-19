@@ -7,9 +7,11 @@ versioning: [SemVer](https://semver.org/).
 
 ### Added
 
-- All actions tab, now the default: every action in one grid, one lettered chip per action in each cell, with
+- All actions grid, now the matrix page: every action in one grid, one lettered chip per action in each cell, with
   per-action toggles in each column header, row and app section (`all V A C D ...`). `GET matrix/?action=*` returns
   it.
+- `show_action_tabs` setting, off by default: brings back the View, Add, Change, Delete and custom action tabs next
+  to All actions.
 - Gear panel lists the principal's permissions and edits any of them: name, description, enabled and constraints.
   Edits in the REST API can name a permission by `perm_id`.
 

@@ -12,7 +12,7 @@ Click **Export** in the matrix toolbar. The file covers what the page shows:
 
 - the columns: every group, plus users when the **Users** switch is on, or only the columns picked with **Columns**;
 - the rows: the app filter and the search box narrow the object types, as they do on the page;
-- every action, not only the tab you are on.
+- every action, whichever tab is open.
 
 The **Only rows with grants** switch does not narrow the export. Rows without grants still belong in the file:
 importing it should revoke anything granted there later.

@@ -80,13 +80,13 @@ URL `/plugins/permissions-matrix/`. Menu entry "Permissions Matrix" in Admin > A
                                             3 changes staged   [Discard] [Review changes]
 ```
 
-- **All actions**, the default tab, shows every action at once: each cell is a row of lettered chips, one per
+- **All actions**, the default view, shows every action at once: each cell is a row of lettered chips, one per
   action, each with its own state. The actions are View, Add, Change, Delete, then every custom action registered by
   a model (`registry["model_actions"]`, NetBox 4.6+), then every free-text "additional action" found in existing
   permissions. A custom action only has a chip on rows whose model registered it; the slot stays empty elsewhere so
   the letters line up. Free-text actions have a chip on every row, because NetBox cannot tell which models they
   apply to.
-- **Single-action tabs** follow, one per action, with one box per cell. On a custom action tab, only rows whose
+- **Single-action tabs** follow when the `show_action_tabs` setting is on, one per action, with one box per cell. On a custom action tab, only rows whose
   model registered that action are enabled; the others are greyed out.
 - **Rows** are the object types that NetBox allows in a permission (the same `OBJECTPERMISSION_OBJECT_TYPES` filter
   the classic form uses), grouped by app. App sections can be collapsed. A search box filters rows by name; an app
@@ -323,6 +323,7 @@ group or the Permissions item cannot be found, the plugin logs a warning and fal
 |---------|---------|---------|
 | `new_permission_name` | `"{principal}_{actions}"` | Name template for simple permissions the plugin creates. `{principal}` is the group name or username as a lower-case slug, `{actions}` (or `{action}`) the action letters. |
 | `menu_placement` | `"admin"` | `"admin"` puts the item below Permissions; `"plugins"` uses the Plugins menu. |
+| `show_action_tabs` | `False` | Whether the page offers the single-action tabs next to All actions. |
 | `show_users_by_default` | `False` | Whether user columns are shown when the page opens. |
 | `hidden_apps` | `[]` | App labels whose object types are not shown as rows. |
 

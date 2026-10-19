@@ -16,7 +16,7 @@
      data-url-permission="{% url 'users:objectpermission' pk=0 %}">
 
   <div class="pm-toolbar">
-    {% if mode == "matrix" %}
+    {% if mode == "matrix" and show_tabs %}
       <ul class="nav nav-pills pm-tabs" role="tablist" aria-label="{% trans 'Action' %}"></ul>
     {% endif %}
     <div class="pm-filters">
