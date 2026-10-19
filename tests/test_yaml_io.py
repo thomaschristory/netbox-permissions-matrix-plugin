@@ -109,6 +109,30 @@ def test_unknown_principals_and_object_types_are_errors():
 
 
 @pytest.mark.parametrize(
+    "sections",
+    [
+        {"grants": {"group:NOC": ["dcim.site"]}},
+        {"grants": ["a"]},
+        {"grants": {"group:NOC": {"view": 5}}},
+        {"grants": {"group:NOC": {"view": [{"object_type": [1]}]}}},
+        {"grants": {"group:NOC": {"view": [["dcim.site"]]}}},
+        {"constrained": {"x": {"view": 3}}},
+        {"disabled": "nope"},
+    ],
+)
+def test_malformed_sections_are_errors_not_crashes(sections):
+    doc = export_doc(base(), TYPES, [NOC], ["view"])
+    doc.update(sections)
+    changes, _, errors = import_changes(base(), doc, set(TYPES))
+    assert changes == [] and errors
+
+
+def test_load_reports_deep_nesting_as_value_error():
+    with pytest.raises(ValueError):
+        load("[" * 5000)
+
+
+@pytest.mark.parametrize(
     "doc",
     [
         None,
