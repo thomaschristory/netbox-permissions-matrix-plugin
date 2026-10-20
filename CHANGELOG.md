@@ -11,6 +11,11 @@ versioning: [SemVer](https://semver.org/).
   kind. All groups and no users are shown at first.
 - Export with `user_id` alone keeps every group. `groups=0` leaves groups out.
 
+### Fixed
+
+- Browsers no longer keep an old `matrix.js` or `matrix.css` after the files change between releases: their URLs
+  carry a hash of the contents instead of the plugin version.
+
 ## [0.2.0] - 2026-10-19
 
 ### Added

@@ -1,4 +1,7 @@
 import datetime
+import functools
+import hashlib
+from pathlib import Path
 
 from django.conf import settings
 from django.contrib.auth.mixins import AccessMixin
@@ -17,6 +20,25 @@ from .core import yaml_io
 from .version import __version__
 
 API = "plugins-api:netbox_permissions_matrix_plugin-api"
+STATIC = Path(__file__).parent / "static" / "netbox_permissions_matrix_plugin"
+ASSETS = ("matrix.js", "matrix.css")
+
+
+@functools.lru_cache(maxsize=4)
+def _assets_hash(stamps) -> str:
+    digest = hashlib.sha256()
+    for name in ASSETS:
+        digest.update((STATIC / name).read_bytes())
+    return digest.hexdigest()[:12]
+
+
+def asset_version() -> str:
+    """The ?v= of the plugin's JS and CSS: a hash of their contents, so browsers fetch them again whenever they change,
+    also between releases. Recomputed only when a file's modification time or size changes."""
+    try:
+        return _assets_hash(tuple((st.st_mtime_ns, st.st_size) for st in ((STATIC / n).stat() for n in ASSETS)))
+    except OSError:  # a broken install: the pages still render, cached by version as before
+        return __version__
 
 
 class MatrixAccessMixin(AccessMixin):
@@ -45,7 +67,7 @@ class MatrixView(MatrixAccessMixin, View):
                 "can_edit": service.can_edit(request.user),
                 "api": api_urls(),
                 "show_users": get_setting("show_users_by_default"),
-                "pm_version": __version__,
+                "asset_version": asset_version(),
                 "who_can_url": reverse("plugins:netbox_permissions_matrix_plugin:who_can", args=["__ot__"]),
                 "export_url": reverse("plugins:netbox_permissions_matrix_plugin:export"),
             },
@@ -79,7 +101,7 @@ class WhoCanView(MatrixAccessMixin, View):
     def get(self, request, object_type):
         context = service.who_can(request.user, object_type)
         context["matrix_url"] = reverse("plugins:netbox_permissions_matrix_plugin:matrix")
-        context["pm_version"] = __version__
+        context["asset_version"] = asset_version()
         return render(request, "netbox_permissions_matrix_plugin/who_can.html", context)
 
 
@@ -100,6 +122,6 @@ class GroupPermissionsMatrixView(generic.ObjectView):
             "principal_key": f"group:{instance.pk}",
             "api": api_urls(),
             "can_edit": service.can_edit(request.user),
-            "pm_version": __version__,
+            "asset_version": asset_version(),
             "who_can_url": reverse("plugins:netbox_permissions_matrix_plugin:who_can", args=["__ot__"]),
         }

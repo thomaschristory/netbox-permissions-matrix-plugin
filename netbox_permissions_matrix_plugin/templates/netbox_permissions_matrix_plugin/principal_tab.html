@@ -3,7 +3,7 @@
 
 {% block head %}
   {{ block.super }}
-  <link rel="stylesheet" href="{% static 'netbox_permissions_matrix_plugin/matrix.css' %}?v={{ pm_version }}">
+  <link rel="stylesheet" href="{% static 'netbox_permissions_matrix_plugin/matrix.css' %}?v={{ asset_version }}">
 {% endblock %}
 
 {% block content %}
@@ -16,5 +16,5 @@
 
 {% block javascript %}
   {{ block.super }}
-  <script src="{% static 'netbox_permissions_matrix_plugin/matrix.js' %}?v={{ pm_version }}"></script>
+  <script src="{% static 'netbox_permissions_matrix_plugin/matrix.js' %}?v={{ asset_version }}"></script>
 {% endblock %}

@@ -12,7 +12,7 @@
 ## The page is unstyled or does not react
 
 The page needs its static files. Run `python manage.py collectstatic --no-input` after installing or upgrading the
-plugin, then reload the page without the browser cache.
+plugin. The page asks for them by a hash of their contents, so browsers fetch new versions by themselves.
 
 ## "The permissions matrix needs view access to all permissions"
 
