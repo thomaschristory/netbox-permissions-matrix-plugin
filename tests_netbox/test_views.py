@@ -131,6 +131,12 @@ class WhoCanPageTest(TestCase):
         self.assertEqual(effective["dave"]["actions"]["delete"]["sources"], ["direct"])
         self.assertIn("root", [u.username for u in ctx["superusers"]])
 
+    def test_constraints_are_shown_as_json(self):
+        response = self.get()
+        # Twice: the Ops cell's tooltip and bob's effective access.
+        self.assertContains(response, "{&quot;site__slug&quot;:&quot;paris&quot;}", count=2)
+        self.assertNotContains(response, "{&#x27;site__slug&#x27;")
+
     def test_unknown_object_type_is_404(self):
         self.assertEqual(self.get("dcim.nothing").status_code, 404)
         self.assertEqual(self.get("core.objecttype").status_code, 404)

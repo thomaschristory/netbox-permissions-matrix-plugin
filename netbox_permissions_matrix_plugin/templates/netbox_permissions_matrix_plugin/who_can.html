@@ -1,5 +1,5 @@
 {% extends 'generic/_base.html' %}
-{% load static i18n %}
+{% load static i18n permissions_matrix %}
 
 {% block title %}{% blocktrans with name=row.label %}Who can: {{ name }}{% endblocktrans %}{% endblock %}
 
@@ -110,7 +110,7 @@
                       {% if name == action.name %}
                         {% include 'netbox_permissions_matrix_plugin/inc/state.html' with state=cell.state cell_perms=None %}
                         <span class="small text-secondary">{{ cell.sources|join:", " }}</span>
-                        {% for c in cell.constraints %}<div><code class="small">{{ c }}</code></div>{% endfor %}
+                        {% for c in cell.constraints %}<div><code class="small">{{ c|tojson }}</code></div>{% endfor %}
                       {% endif %}
                     {% endfor %}
                   </td>
