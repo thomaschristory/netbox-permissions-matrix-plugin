@@ -91,6 +91,8 @@ class AssetVersionTest(SimpleTestCase):
                 with open(static / "matrix.js", "a") as f:
                     f.write("\n// changed\n")
                 self.assertNotEqual(views.asset_version(), before)
+                (static / "matrix.css").unlink()
+                self.assertEqual(views.asset_version(), views.__version__)
 
 
 class WhoCanPageTest(TestCase):

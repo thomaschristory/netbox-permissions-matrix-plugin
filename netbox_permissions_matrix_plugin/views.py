@@ -17,6 +17,7 @@ from utilities.views import ViewTab, register_model_view
 from . import service
 from .conf import get_setting
 from .core import yaml_io
+from .version import __version__
 
 API = "plugins-api:netbox_permissions_matrix_plugin-api"
 STATIC = Path(__file__).parent / "static" / "netbox_permissions_matrix_plugin"
@@ -34,7 +35,10 @@ def _assets_hash(stamps) -> str:
 def asset_version() -> str:
     """The ?v= of the plugin's JS and CSS: a hash of their contents, so browsers fetch them again whenever they change,
     also between releases. Recomputed only when a file's modification time or size changes."""
-    return _assets_hash(tuple((st.st_mtime_ns, st.st_size) for st in ((STATIC / n).stat() for n in ASSETS)))
+    try:
+        return _assets_hash(tuple((st.st_mtime_ns, st.st_size) for st in ((STATIC / n).stat() for n in ASSETS)))
+    except OSError:  # a broken install: the pages still render, cached by version as before
+        return __version__
 
 
 class MatrixAccessMixin(AccessMixin):
