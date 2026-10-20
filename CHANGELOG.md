@@ -5,6 +5,8 @@ versioning: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-20
+
 ### Added
 
 - App sections have letter toggles in each column: one gives or takes an action on every row of the app for that
@@ -94,7 +96,8 @@ versioning: [SemVer](https://semver.org/).
   group tab, export and import, permissions, REST API, limitations, troubleshooting and development.
 - Project scaffold: plugin configuration, settings, CI, release and documentation workflows, development stack.
 
-[Unreleased]: https://github.com/thomaschristory/netbox-permissions-matrix-plugin/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/thomaschristory/netbox-permissions-matrix-plugin/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/thomaschristory/netbox-permissions-matrix-plugin/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/thomaschristory/netbox-permissions-matrix-plugin/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/thomaschristory/netbox-permissions-matrix-plugin/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/thomaschristory/netbox-permissions-matrix-plugin/releases/tag/v0.1.0
