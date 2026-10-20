@@ -83,6 +83,17 @@ class MatrixReadTest(APITestBase):
         self.assertEqual(cells["dcim.device"]["state"], "none")
         self.assertEqual(cells["dcim.device"]["inherited"], {"state": "granted", "groups": ["NOC"]})
 
+    def test_user_id_adds_to_users_with_direct_permissions(self):
+        self.add_permissions(*VIEW)
+        make_perm("alice direct", ["view"], ["dcim.rack"], users=[self.alice])
+        bob = user("bob")
+        params = {"include_users": "true", "user_id": bob.pk}
+        users = [c["name"] for c in self.client.get(reverse(MATRIX), params).json()["columns"] if c["type"] == "user"]
+        self.assertTrue({"alice", "bob"} <= set(users))
+        params = {"user_id": bob.pk}
+        users = [c["name"] for c in self.client.get(reverse(MATRIX), params).json()["columns"] if c["type"] == "user"]
+        self.assertEqual(users, ["bob"])
+
     def test_group_filter(self):
         self.add_permissions(*VIEW)
         data = self.client.get(reverse(MATRIX), {"group_id": self.ops.pk}).json()

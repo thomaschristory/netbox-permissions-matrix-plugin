@@ -25,5 +25,5 @@ that action, to edit their name, description, enabled flag and constraints.
 The tab appears for users with `users.view_objectpermission`. Like the main page, it then needs that view to be
 unconstrained: see [Permissions](permissions.md).
 
-Export and import are on the main page only. To export one group, pick only its column with **Columns** there, then
+Export and import are on the main page only. To export one group, pick only that group with **Groups** there, then
 click **Export**.

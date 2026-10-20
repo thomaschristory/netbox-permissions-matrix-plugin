@@ -31,15 +31,18 @@
   };
   const params = new URLSearchParams(window.location.search);
   const listParam = (name) => params.getAll(name).filter(Boolean);
+  const showUsersByDefault = root.dataset.showUsers === "true";
 
   const state = {
     // The server sends "*" when the action tabs are off, so the URL cannot pick a single action then.
     action: $(".pm-tabs") ? params.get("action") || root.dataset.action || "*" : "*",
-    includeUsers: params.has("users") ? params.get("users") === "1" : root.dataset.showUsers === "true",
-    // Column keys picked in the column dialog ("group:3", "user:7"); null shows every column.
-    shown: params.has("group_id") || params.has("user_id")
-      ? new Set([...listParam("group_id").map((id) => `group:${id}`), ...listParam("user_id").map((id) => `user:${id}`)])
-      : null,
+    // The columns shown, per kind: "all", or a Set of the IDs picked in the Groups or Users dialog (empty: none).
+    groups: params.get("groups") === "0" ? new Set() : params.has("group_id") ? new Set(listParam("group_id")) : "all",
+    users: params.has("user_id")
+      ? new Set(listParam("user_id"))
+      : (params.has("users") ? params.get("users") === "1" : showUsersByDefault)
+        ? "all"
+        : new Set(),
     search: params.get("q") || "",
     app: params.get("app") || "",
     onlyGranted: params.get("granted") === "1",
@@ -99,13 +102,13 @@
     const next = new URLSearchParams();
     if (mode === "matrix") {
       if ($(".pm-tabs")) next.set("action", state.action);
-      if (state.includeUsers) next.set("users", "1");
-      if (state.shown) {
-        for (const key of state.shown) {
-          const [kind, id] = key.split(":");
-          next.append(kind === "group" ? "group_id" : "user_id", id);
-        }
+      if (state.groups !== "all") {
+        if (!state.groups.size) next.set("groups", "0");
+        for (const id of state.groups) next.append("group_id", id);
       }
+      if (state.users === "all") next.set("users", "1");
+      else if (!state.users.size && showUsersByDefault) next.set("users", "0");
+      for (const id of state.users === "all" ? [] : state.users) next.append("user_id", id);
     }
     if (state.search) next.set("q", state.search);
     if (state.app) next.set("app", state.app);
@@ -189,10 +192,15 @@
   // The actions a cell shows: one in the single-action views, every action in the all-actions grid.
   const cellActions = (col) => (allMode() ? state.data.actions.map((a) => a.name) : [col.action]);
 
+  // Whether the Groups or Users dialog has this column's principal picked.
+  function picked(col) {
+    const chosen = col.kind === "group" ? state.groups : state.users;
+    return chosen === "all" || chosen.has(String(col.principal.id));
+  }
+
   function visibleColumns() {
     const all = columns();
-    if (mode !== "matrix" || !state.shown) return all;
-    return all.filter((c) => state.shown.has(c.key));
+    return mode === "matrix" ? all.filter(picked) : all;
   }
 
   function visibleRows(cols) {
@@ -280,8 +288,9 @@
     const cols = visibleColumns();
     const rows = visibleRows(cols);
     const scroll = $(".pm-scroll");
+    renderPickCounts();
     if (!cols.length) {
-      scroll.innerHTML = `<div class="p-4 text-secondary">No columns to show. Use Columns or the Users switch.</div>`;
+      scroll.innerHTML = `<div class="p-4 text-secondary">No columns to show. Use Groups or Users to pick some.</div>`;
       updateBar();
       return;
     }
@@ -371,8 +380,9 @@
     message("");
     try {
       if (mode === "matrix") {
-        const query = new URLSearchParams({ action: state.action, include_users: state.includeUsers ? "true" : "false" });
-        for (const key of state.shown || []) if (key.startsWith("user:")) query.append("user_id", key.slice(5));
+        // Every user with direct permissions, so the Users dialog can list them, plus users picked in the URL.
+        const query = new URLSearchParams({ action: state.action, include_users: "true" });
+        for (const id of state.users === "all" ? [] : state.users) query.append("user_id", id);
         state.data = await api(`${urls.matrix}?${query}`);
         renderTabs();
       } else {
@@ -477,12 +487,33 @@
 
   /* ---------- Column picker ---------- */
 
-  function openColumns() {
-    const dialog = $(".pm-columns-dialog");
+  const PICKERS = {
+    group: { title: "Groups", empty: "No groups." },
+    user: { title: "Users", empty: "No users have permissions assigned directly." },
+  };
+
+  // The picker buttons count the columns of their kind shown: Groups when not every group is, Users when any user is.
+  function renderPickCounts() {
+    if (mode !== "matrix") return;
     const all = columns();
-    $(".pm-columns-body", dialog).innerHTML = all.length
-      ? `<div class="pm-columns-list">${all.map((c) => `<label class="form-check"><input class="form-check-input" type="checkbox" value="${esc(c.key)}"${!state.shown || state.shown.has(c.key) ? " checked" : ""}><span class="form-check-label"><i class="mdi ${c.kind === "group" ? "mdi-account-group" : "mdi-account"}" aria-hidden="true"></i> ${esc(c.label)}</span></label>`).join("")}</div>`
-      : `<p class="text-secondary">No groups or users.</p>`;
+    for (const button of $$(".pm-pick")) {
+      const ofKind = all.filter((c) => c.kind === button.dataset.kind);
+      const shown = ofKind.filter(picked).length;
+      const counted = button.dataset.kind === "group" ? shown < ofKind.length : shown > 0;
+      $(".pm-pick-count", button).innerHTML = counted
+        ? `<span class="badge bg-primary text-primary-fg">${shown}/${ofKind.length}</span>`
+        : "";
+    }
+  }
+
+  function openColumns(kind) {
+    const dialog = $(".pm-columns-dialog");
+    const ofKind = columns().filter((c) => c.kind === kind);
+    dialog.dataset.kind = kind;
+    $("#pm-columns-title", dialog).textContent = PICKERS[kind].title;
+    $(".pm-columns-body", dialog).innerHTML = ofKind.length
+      ? `<div class="pm-columns-list">${ofKind.map((c) => `<label class="form-check"><input class="form-check-input" type="checkbox" value="${esc(c.principal.id)}"${picked(c) ? " checked" : ""}><span class="form-check-label">${esc(c.label)}</span></label>`).join("")}</div>`
+      : `<p class="text-secondary">${PICKERS[kind].empty}</p>`;
     dialog.showModal();
   }
 
@@ -685,13 +716,16 @@
       state.importNotes = null;
       $(".pm-review-dialog").close();
       load();
-    } else if (target.matches(".pm-columns-button")) {
-      openColumns();
-    } else if (target.matches(".pm-columns-all")) {
-      $$(".pm-columns-body input").forEach((el) => (el.checked = true));
+    } else if (target.matches(".pm-pick")) {
+      openColumns(target.dataset.kind);
+    } else if (target.matches(".pm-columns-all, .pm-columns-none")) {
+      $$(".pm-columns-body input").forEach((el) => (el.checked = target.matches(".pm-columns-all")));
     } else if (target.matches(".pm-columns-apply")) {
-      const picked = $$(".pm-columns-body input").filter((el) => el.checked).map((el) => el.value);
-      state.shown = picked.length === columns().length ? null : new Set(picked);
+      const boxes = $$(".pm-columns-body input");
+      const ids = boxes.filter((el) => el.checked).map((el) => el.value);
+      const chosen = ids.length === boxes.length ? "all" : new Set(ids);
+      if ($(".pm-columns-dialog").dataset.kind === "group") state.groups = chosen;
+      else state.users = chosen;
       syncUrl();
       render();
     }
@@ -719,16 +753,6 @@
     syncUrl();
     render();
   });
-  const users = $(".pm-users");
-  if (users) {
-    users.checked = state.includeUsers;
-    users.addEventListener("change", () => {
-      state.includeUsers = users.checked;
-      syncUrl();
-      load();
-    });
-  }
-
   const exportLink = $(".pm-export");
   if (exportLink && urls.export) {
     // The link follows the filters at click time; the "only rows with grants" switch does not narrow the export.

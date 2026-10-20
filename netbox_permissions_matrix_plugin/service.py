@@ -57,20 +57,25 @@ def visible_users(user) -> set[int]:
 class MatrixQuery:
     action: str = "view"
     include_users: bool = False
+    include_groups: bool = True
     group_ids: tuple[int, ...] = ()
     user_ids: tuple[int, ...] = ()
     app_labels: tuple[str, ...] = ()
 
 
 def columns_for(snap: Snapshot, user, query: MatrixQuery) -> list[PrincipalRef]:
-    groups = visible_groups(user)
-    refs = [r for r in snap.principals if r.kind == GROUP and r.id in groups]
-    if query.group_ids:
-        refs = [r for r in refs if r.id in query.group_ids]
-    if query.include_users or query.user_ids:
+    refs = []
+    if query.include_groups:
+        groups = visible_groups(user)
+        refs = [r for r in snap.principals if r.kind == GROUP and r.id in groups]
+        if query.group_ids:
+            refs = [r for r in refs if r.id in query.group_ids]
+    # Users with direct permissions when include_users is set, plus any user named in user_ids.
+    candidates = set(query.user_ids)
+    if query.include_users:
+        candidates |= {uid for p in snap.perms.values() for uid in p.users}
+    if candidates:
         users = visible_users(user)
-        direct = {uid for p in snap.perms.values() for uid in p.users}
-        candidates = set(query.user_ids) if query.user_ids else direct
         refs += [r for r in snap.principals if r.kind == USER and r.id in users & candidates]
     # Groups first, then users, each by name.
     return sorted(refs, key=lambda r: (r.kind != GROUP, snap.name_of(r).lower()))
@@ -276,10 +281,6 @@ def export_payload(user, query: MatrixQuery, search: str = "") -> dict:
         row_list = [r for r in row_list if r.app_label in query.app_labels]
     row_list = search_rows(row_list, search)
     principals = columns_for(snap, user, query)
-    if query.group_ids or query.user_ids:
-        # Columns picked on the page: exactly those, whether groups, users or both.
-        picked = {PrincipalRef(GROUP, g) for g in query.group_ids} | {PrincipalRef(USER, u) for u in query.user_ids}
-        principals = [r for r in principals if r in picked]
     actions = [t.name for t in loader.action_tabs(snap, row_list)]
     return export_doc(snap, [r.object_type for r in row_list], principals, actions)
 

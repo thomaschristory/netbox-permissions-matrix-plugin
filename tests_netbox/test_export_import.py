@@ -73,7 +73,12 @@ class ExportTest(ExportImportBase):
         doc = self.export(users="1")
         self.assertIn({"type": "user", "name": "alice"}, doc["scope"]["principals"])
         self.assertEqual(doc["grants"]["user:alice"]["view"], ["dcim.rack"])
-        only_alice = self.export(user_id=self.alice.pk)
+        with_alice = self.export(user_id=self.alice.pk)
+        self.assertEqual(
+            with_alice["scope"]["principals"],
+            [{"type": "group", "name": "NOC"}, {"type": "group", "name": "Ops"}, {"type": "user", "name": "alice"}],
+        )
+        only_alice = self.export(user_id=self.alice.pk, groups="0")
         self.assertEqual(only_alice["scope"]["principals"], [{"type": "user", "name": "alice"}])
 
 

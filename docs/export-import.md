@@ -10,7 +10,7 @@ cells, and opens the review. Nothing changes until you click Apply.
 
 Click **Export** in the matrix toolbar. The file covers what the page shows:
 
-- the columns: every group, plus users when the **Users** switch is on, or only the columns picked with **Columns**;
+- the columns: the groups and users picked with **Groups** and **Users**;
 - the rows: the app filter and the search box narrow the object types, as they do on the page;
 - every action, whichever tab is open.
 
@@ -18,7 +18,7 @@ The **Only rows with grants** switch does not narrow the export. Rows without gr
 importing it should revoke anything granted there later.
 
 The same file is available at `/plugins/permissions-matrix/export/`, with the page's query parameters: `group_id` and
-`user_id` (repeatable), `users=1`, `app` and `q`. Exporting needs the same rights as viewing the matrix (see
+`user_id` (repeatable), `groups=0` (no groups), `users=1` (every user with direct permissions), `app` and `q`. Exporting needs the same rights as viewing the matrix (see
 [Permissions](permissions.md)).
 
 ## The file
