@@ -6,7 +6,7 @@ import logging
 
 from core.models import ObjectType
 from django.core.exceptions import PermissionDenied
-from django.db import transaction
+from django.db import connection, transaction
 from users.models import ObjectPermission
 
 from .core.model import Operation, Perm, Plan
@@ -70,6 +70,9 @@ def apply_plan(plan: Plan, user) -> list[dict]:
             if not ObjectPermission.objects.restrict(user, action).filter(pk=obj.pk).exists():
                 raise _denied(op, action)
             written.append({"op": op.op, "id": obj.pk, "name": obj.name})
+        # Foreign keys are checked at commit. Check them now, so a group or user deleted meanwhile raises
+        # IntegrityError here, inside the transaction, rather than after the caller thinks the plan is written.
+        connection.check_constraints()
     logger.info(
         "%s applied a permissions matrix plan: %s",
         user.username,
