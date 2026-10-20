@@ -70,12 +70,10 @@ def columns_for(snap: Snapshot, user, query: MatrixQuery) -> list[PrincipalRef]:
         refs = [r for r in snap.principals if r.kind == GROUP and r.id in groups]
         if query.group_ids:
             refs = [r for r in refs if r.id in query.group_ids]
-    # Users with direct permissions when include_users is set, plus any user named in user_ids.
-    candidates = set(query.user_ids)
-    if query.include_users:
-        candidates |= {uid for p in snap.perms.values() for uid in p.users}
-    if candidates:
+    if query.include_users or query.user_ids:
         users = visible_users(user)
+        direct = {uid for p in snap.perms.values() for uid in p.users}
+        candidates = set(query.user_ids) if query.user_ids else direct
         refs += [r for r in snap.principals if r.kind == USER and r.id in users & candidates]
     # Groups first, then users, each by name.
     return sorted(refs, key=lambda r: (r.kind != GROUP, snap.name_of(r).lower()))

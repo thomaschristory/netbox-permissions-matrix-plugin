@@ -24,7 +24,7 @@ The matrix for one action, or for every action at once.
 | `action` | `view` | The action: `view`, `add`, `change`, `delete`, a registered custom action, or any other action name. `*` returns every action (see below). |
 | `include_users` | the `show_users_by_default` setting | `true` adds a column for every user with a permission assigned directly. |
 | `group_id` | all groups | Only these groups. Repeat the parameter for several. |
-| `user_id` | | These users too, whether or not they have direct permissions. Repeat for several. |
+| `user_id` | | These users, whether or not they have direct permissions. Implies user columns. |
 | `app_label` | all apps | Only rows of these apps. Repeat for several. |
 
 The response:

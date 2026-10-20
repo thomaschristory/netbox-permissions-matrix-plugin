@@ -30,16 +30,17 @@
     permission: root.dataset.urlPermission,
   };
   const params = new URLSearchParams(window.location.search);
-  const listParam = (name) => params.getAll(name).filter(Boolean);
+  // IDs as the server reads them: digits only, without leading zeros.
+  const idParam = (name) => params.getAll(name).filter((v) => /^\d+$/.test(v)).map((v) => String(Number(v)));
   const showUsersByDefault = root.dataset.showUsers === "true";
 
   const state = {
     // The server sends "*" when the action tabs are off, so the URL cannot pick a single action then.
     action: $(".pm-tabs") ? params.get("action") || root.dataset.action || "*" : "*",
     // The columns shown, per kind: "all", or a Set of the IDs picked in the Groups or Users dialog (empty: none).
-    groups: params.get("groups") === "0" ? new Set() : params.has("group_id") ? new Set(listParam("group_id")) : "all",
+    groups: params.get("groups") === "0" ? new Set() : params.has("group_id") ? new Set(idParam("group_id")) : "all",
     users: params.has("user_id")
-      ? new Set(listParam("user_id"))
+      ? new Set(idParam("user_id"))
       : (params.has("users") ? params.get("users") === "1" : showUsersByDefault)
         ? "all"
         : new Set(),
@@ -380,10 +381,15 @@
     message("");
     try {
       if (mode === "matrix") {
-        // Every user with direct permissions, so the Users dialog can list them, plus users picked in the URL.
+        // Every user with direct permissions, so the Users dialog can list them; the pickers filter the columns here.
         const query = new URLSearchParams({ action: state.action, include_users: "true" });
-        for (const id of state.users === "all" ? [] : state.users) query.append("user_id", id);
         state.data = await api(`${urls.matrix}?${query}`);
+        if (state.users !== "all") {
+          // Users from the URL without direct permissions have no column: keep the URL and the export to those shown.
+          const listed = new Set(columns().filter((c) => c.kind === "user").map((c) => String(c.principal.id)));
+          state.users = new Set([...state.users].filter((id) => listed.has(id)));
+          syncUrl();
+        }
         renderTabs();
       } else {
         const [type, id] = root.dataset.principal.split(":");
