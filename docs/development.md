@@ -19,8 +19,8 @@ The plugin directory is mounted into the container:
 
 - Python and template changes need a restart (`make restart`). Templates are cached because the stack runs with
   `DEBUG` off.
-- Static files (`matrix.js`, `matrix.css`) are served from the mount. Their URLs carry `?v=<version>`, so force a
-  reload in the browser after editing them.
+- Static files (`matrix.js`, `matrix.css`) are served from the mount. Their URLs carry `?v=` and a hash of their
+  contents, so a normal reload picks up an edit.
 
 `make logs` follows NetBox's log; `make down` stops the stack.
 

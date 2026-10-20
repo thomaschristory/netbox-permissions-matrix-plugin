@@ -1,6 +1,13 @@
-from django.test import override_settings
+import shutil
+import tempfile
+from pathlib import Path
+from unittest import mock
+
+from django.test import SimpleTestCase, override_settings
 from django.urls import reverse
 from utilities.testing import TestCase
+
+from netbox_permissions_matrix_plugin import views
 
 from .fixtures import groups, make_perm
 
@@ -43,7 +50,7 @@ class MatrixPageTest(TestCase):
         html = response.content.decode()
         self.assertIn('data-can-edit="false"', html)
         self.assertIn(reverse("plugins-api:netbox_permissions_matrix_plugin-api:matrix"), html)
-        self.assertIn("netbox_permissions_matrix_plugin/matrix.js", html)
+        self.assertIn(f"netbox_permissions_matrix_plugin/matrix.js?v={views.asset_version()}", html)
         self.assertIn("Permissions Matrix", html)
 
     def test_editable_page(self):
@@ -70,6 +77,20 @@ class MatrixPageTest(TestCase):
         perm.save()
         response = self.client.get(reverse(MATRIX))
         self.assertEqual(response.status_code, 403)
+
+
+class AssetVersionTest(SimpleTestCase):
+    def test_changes_with_the_files(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            static = Path(tmp)
+            for name in views.ASSETS:
+                shutil.copy(views.STATIC / name, static / name)
+            with mock.patch.object(views, "STATIC", static):
+                before = views.asset_version()
+                self.assertEqual(views.asset_version(), before)
+                with open(static / "matrix.js", "a") as f:
+                    f.write("\n// changed\n")
+                self.assertNotEqual(views.asset_version(), before)
 
 
 class WhoCanPageTest(TestCase):
