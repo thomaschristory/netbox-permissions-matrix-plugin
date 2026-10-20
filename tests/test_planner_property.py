@@ -132,6 +132,13 @@ def test_dense_change_sets(seed):
                     assert cell_state(after, ref, ot, action) is CellState.NONE, (ref, ot, action)
     assert all(p.object_types and p.actions for p in after.perms.values())
     assert result.operations == plan(snap, changes).operations
+    # A name the plan gives has no number when the name without it ends up free.
+    if len({p.name for p in snap.perms.values()}) == len(snap.perms):
+        held = {p.name for p in after.perms.values()}
+        for op in result.operations:
+            if op.after is not None and (op.before is None or op.before.name != op.after.name):
+                numbered = re.fullmatch(r"(.+) \d+", op.after.name)
+                assert not numbered or numbered.group(1) in held, op.after.name
 
 
 # Gear panel edits: rename, enable or disable, constraints and description.

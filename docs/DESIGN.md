@@ -184,7 +184,10 @@ Grants are handled per (principal p, object type t), with A the actions ticked f
      and settings. If S still has a generated name (the template's result for its old actions, with or without a
      number), it is renamed for A; a name set by hand is kept;
    - otherwise, create it. Its name comes from the `new_permission_name` setting (default
-     `"{principal}_{actions}"`, for example `noc_vac`). A number is appended if the name is already taken.
+     `"{principal}_{actions}"`, for example `noc_vac`). A number is appended if the name is already taken. Names
+     of permissions the change set deletes are not taken: the plan is worked out a second time with them free.
+     Names held only by permissions the plan creates and then drops are free too: the names given in the plan are
+     numbered again once those are gone.
 
 Several object types ending with the same action set share one simple permission. After all grants and revokes, a
 simple permission the change set emptied takes over a non-empty permission the same change set created for the same

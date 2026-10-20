@@ -39,13 +39,26 @@ def slug(name: str) -> str:
     return re.sub(r"[^0-9a-z]+", "_", name.lower()).strip("_") or "principal"
 
 
+def _first_free(base: str, taken: set[str]) -> str:
+    """base, else base with the lowest number from 2 that is not taken, cut to fit NAME_MAX."""
+    name, n = base, 1
+    while name in taken:
+        n += 1
+        suffix = f" {n}"
+        name = base[: NAME_MAX - len(suffix)] + suffix
+    return name
+
+
 class _Work:
     """Mutable working copy of the permissions, keyed by "<id>" or "new-N"."""
 
-    def __init__(self, snap: Snapshot):
+    def __init__(self, snap: Snapshot, free: frozenset[str] = frozenset()):
         self.snap = snap
         self.perms: dict[str, Perm] = {str(pid): p for pid, p in sorted(snap.perms.items())}
-        self.names: set[str] = {p.name for p in snap.perms.values()}
+        # Names taken, so new names get a number. free: names of permissions this change set deletes, given back.
+        self.names: set[str] = {p.name for p in snap.perms.values()} - free
+        self.deleted_names: set[str] = set()
+        self.numbered: dict[str, str] = {}  # names unique_name gave a number, with the name they were numbered from
         self.reasons: dict[str, list[str]] = defaultdict(list)
         self.warnings: list[str] = []
         self.named: set[str] = set()  # keys an edit renamed in this change set: never renamed automatically
@@ -61,13 +74,29 @@ class _Work:
 
     def unique_name(self, base: str) -> str:
         base = base[:NAME_MAX]
-        name, n = base, 1
-        while name in self.names:
-            n += 1
-            suffix = f" {n}"
-            name = base[: NAME_MAX - len(suffix)] + suffix
+        name = _first_free(base, self.names)
+        if name != base:
+            self.numbered[name] = base
         self.names.add(name)
         return name
+
+    def renumber(self) -> None:
+        """Number the names given in this plan again, now that the permissions it drops no longer hold theirs.
+
+        A permission created and then emptied in the same plan held its name while others were named, so they got a
+        number ("shared (NOC) 2") although the name ends up free.
+        """
+        held = {p.name for p in self.perms.values()}
+        for key in self.ordered_keys():
+            perm = self.perms[key]
+            base = self.numbered.get(perm.name)
+            if base is None or (not key.startswith("new-") and perm.name == self.snap.perms[int(key)].name):
+                continue
+            held.discard(perm.name)
+            name = _first_free(base, held)
+            held.add(name)
+            self.perms[key] = dataclasses.replace(perm, name=name)
+        self.names = held
 
     def create(self, perm: Perm, reason: str) -> str:
         self._new += 1
@@ -81,7 +110,7 @@ class _Work:
         self.reasons[key].extend(reasons)
 
     def delete(self, key: str, reason: str) -> None:
-        del self.perms[key]
+        self.deleted_names.add(self.perms.pop(key).name)
         self.reasons[key].append(reason)
 
     def set_key(self, ref: PrincipalRef, actions: Iterable[str]) -> str | None:
@@ -430,9 +459,35 @@ def plan(
     edits: Iterable[PermEdit] = (),
     name_template: str = DEFAULT_NAME_TEMPLATE,
 ) -> Plan:
-    work = _Work(snap)
     changes = _dedupe(changes)
     edits = sorted(edits, key=lambda e: (e.principal, e.action, e.perm_id or 0))
+    work = _work(snap, changes, edits, name_template)
+    # Permissions are deleted last, once nothing can reuse them, so their names were still taken while new ones were
+    # picked. Names are never used to decide what is reused, so a second pass with those names free makes the same
+    # operations, only without the numbers they forced.
+    free = frozenset(work.deleted_names - {p.name for p in work.perms.values()})
+    if free:
+        work = _work(snap, changes, edits, name_template, free)
+
+    operations = []
+    for key in sorted(set(work.perms) | {str(pid) for pid in snap.perms}, key=work.order):
+        before = None if key.startswith("new-") else snap.perms[int(key)]
+        after = work.perms.get(key)
+        if before == after:
+            continue
+        op = "create" if before is None else "delete" if after is None else "update"
+        operations.append(Operation(op, key, before, after, _affects(before, after), tuple(work.reasons[key])))
+    return Plan(operations, work.warnings)
+
+
+def _work(
+    snap: Snapshot,
+    changes: list[CellChange],
+    edits: list[PermEdit],
+    name_template: str,
+    free: frozenset[str] = frozenset(),
+) -> _Work:
+    work = _Work(snap, free)
 
     # Edits of a permission by ID come first, on the permission as the panel showed it: a permission disabled or
     # constrained here is then no longer simple, so grants in the same change set go elsewhere.
@@ -453,6 +508,7 @@ def plan(
     for ref, ot in sorted(grants):
         _grant(work, ref, ot, grants[(ref, ot)], name_template)
     _drop_emptied(work, name_template)
+    work.renumber()
     # Edits by action target the simple permission the grants above may have created.
     for edit in edits:
         if edit.perm_id is None:
@@ -462,13 +518,4 @@ def plan(
             work.warnings.append(
                 f"{snap.perms[edit.perm_id].name} is deleted by the cell changes in this change set; its edit is lost."
             )
-
-    operations = []
-    for key in sorted(set(work.perms) | {str(pid) for pid in snap.perms}, key=work.order):
-        before = None if key.startswith("new-") else snap.perms[int(key)]
-        after = work.perms.get(key)
-        if before == after:
-            continue
-        op = "create" if before is None else "delete" if after is None else "update"
-        operations.append(Operation(op, key, before, after, _affects(before, after), tuple(work.reasons[key])))
-    return Plan(operations, work.warnings)
+    return work

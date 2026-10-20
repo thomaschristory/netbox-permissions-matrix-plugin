@@ -497,3 +497,70 @@ def test_renaming_to_a_free_name_does_not_warn():
     snap = snapshot(perm(1, "noc_v", ["view"], ["dcim.site"], NOC))
     result = plan(snap, [], [PermEdit(NOC, perm_id=1, name="NOC readers")])
     assert result.warnings == []
+
+
+# A permission the change set deletes frees its name for the permissions the same change set creates
+
+
+def test_an_emptied_constrained_permission_releases_its_name():
+    snap = snapshot(perm(5, "noc_v", ["view"], ["dcim.device"], NOC, constraints={"name__startswith": "p"}))
+    ops = plan(snap, [revoke(NOC, "dcim.device", "view"), grant(NOC, "dcim.site", "view")]).operations
+    assert [(o.op, o.key) for o in ops] == [("delete", "5"), ("create", "new-1")]
+    assert ops[1].after.name == "noc_v"
+
+
+def test_an_emptied_disabled_permission_releases_its_name():
+    snap = snapshot(perm(5, "noc_v", ["view"], ["dcim.device"], NOC, enabled=False))
+    ops = plan(snap, [revoke(NOC, "dcim.device", "view"), grant(NOC, "dcim.site", "view")]).operations
+    assert [o.op for o in ops] == ["delete", "create"]
+    assert ops[1].after.name == "noc_v"
+
+
+def test_an_emptied_simple_permission_releases_its_name():
+    # Named by hand, with actions that neither contain nor are contained in the new ones: it is deleted, not reused.
+    snap = snapshot(perm(5, "noc_c", ["view", "add"], ["dcim.device"], NOC))
+    changes = [revoke(NOC, "dcim.device", "view"), revoke(NOC, "dcim.device", "add"), grant(NOC, "dcim.site", "change")]
+    ops = plan(snap, changes).operations
+    assert [(o.op, o.key) for o in ops] == [("delete", "5"), ("create", "new-1")]
+    assert ops[1].after.name == "noc_c"
+
+
+def test_a_released_name_typed_in_the_panel_is_kept_without_a_number():
+    snap = snapshot(
+        perm(5, "noc_v", ["view"], ["dcim.device"], NOC, enabled=False),
+        perm(6, "custom", ["change"], ["dcim.site"], NOC),
+    )
+    result = plan(snap, [revoke(NOC, "dcim.device", "view")], [PermEdit(NOC, perm_id=6, name="noc_v")])
+    assert [(o.op, o.key, o.after and o.after.name) for o in result.operations] == [
+        ("delete", "5", None),
+        ("update", "6", "noc_v"),
+    ]
+
+
+def test_a_name_another_kept_permission_has_is_not_released():
+    snap = snapshot(
+        perm(5, "noc_v", ["view"], ["dcim.device"], NOC, enabled=False),
+        perm(6, "noc_v", ["view"], ["dcim.rack"], OPS),
+    )
+    ops = plan(snap, [revoke(NOC, "dcim.device", "view"), grant(NOC, "dcim.site", "view")]).operations
+    assert [o.op for o in ops] == ["delete", "create"]
+    assert ops[1].after.name == "noc_v 2"
+
+
+def test_a_split_emptied_in_the_same_change_set_releases_its_name():
+    # The revokes split "shared (NOC)" (change on device and rack) and "shared (NOC) 2" (add on site) off for NOC; the
+    # view grants then move device and rack to noc_vc, so the first split is dropped and its name is free.
+    snap = snapshot(
+        perm(1, "shared", ["add", "change"], ["dcim.device", "dcim.rack", "dcim.site"], NOC, OPS),
+        perm(2, "noc_vc", ["view", "change"], ["ipam.prefix"], NOC),
+    )
+    changes = [
+        revoke(NOC, "dcim.device", "add"),
+        revoke(NOC, "dcim.rack", "add"),
+        revoke(NOC, "dcim.site", "change"),
+        grant(NOC, "dcim.device", "view"),
+        grant(NOC, "dcim.rack", "view"),
+    ]
+    ops = plan(snap, changes).operations
+    assert [(o.op, o.key) for o in ops] == [("update", "1"), ("update", "2"), ("create", "new-2")]
+    assert (ops[2].after.name, ops[2].after.actions) == ("shared (NOC)", ("add",))

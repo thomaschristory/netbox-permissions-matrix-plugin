@@ -39,7 +39,8 @@ setting; see [Configuration](configuration.md).
    has now plus the ones you ticked.
 3. The object type leaves the simple permission it was in, and goes into the principal's simple permission for the
    new set of actions. If there is none, one is created and named as above. A number is appended if the name is
-   taken.
+   taken. The name of a permission the same change set deletes counts as free, as does the name of a split
+   permission the same change set empties again.
 
 So ticking **Change** on Device for NOC, when NOC has `noc_va` on Device and Site, moves Device from `noc_va` to
 `noc_vac`. Site stays in `noc_va`. Ticking view and add on several object types fills one `noc_va`.
@@ -68,7 +69,8 @@ constraints. For each of those permissions:
   keeping its ID, as when ticking.
 - Otherwise, if the permission grants nothing else to this principal, and nobody else has it, it is deleted. It is
   never reused for a grant in the same change set: its constraints or disabled flag would carry over to access
-  that was ticked without them.
+  that was ticked without them. Its name is free, though: a permission created in the same change set may take it,
+  without a number.
 - If it grants other cells but belongs to this principal only, it is rewritten in place to keep the other cells.
   When the cells left cannot be expressed as one permission (because object types keep different actions), the
   plugin creates one more permission per extra combination.
