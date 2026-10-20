@@ -149,7 +149,7 @@ permissions created, changed and deleted (`op`, `id`, `name`).
 | 200 | Applied. Everything in `written` is saved. |
 | 400 | The change set is invalid, or `token` is missing. |
 | 403 | The token is not write-enabled, you may not use the matrix, or not add, change or delete one of the permissions in the plan. Nothing was written. |
-| 409 | A permission the plan depends on changed after `plan/`, or a group or user in it was deleted during the apply. Nothing was written: plan again. |
+| 409 | A permission the plan depends on changed after `plan/`, a name the plan gives was taken, or a group or user in it was deleted during the apply. Nothing was written: plan again. |
 
 The whole apply runs in one database transaction, with the permission table locked against other writers, so it
 either applies completely or not at all.

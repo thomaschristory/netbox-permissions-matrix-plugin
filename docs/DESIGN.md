@@ -318,8 +318,9 @@ group or the Permissions item cannot be found, the plugin logs a warning and fal
 - The snapshot is loaded with a fixed number of queries (permissions with prefetched object types, groups and users),
   whatever the number of permissions.
 - The version token is a hash of every permission assigned to any principal in the change set (including the ones
-  the plan does not modify, because grant decisions depend on them), the set of permission names (for name
-  clashes), and the principals themselves.
+  the plan does not modify, because grant decisions depend on them), the names the plan gives, and the principals
+  themselves. Apply plans again, so a name taken (or freed) meanwhile changes the names and refuses the apply, while
+  other permissions created, renamed or deleted meanwhile do not.
 - Permission checks on created permissions run inside the transaction: the new rows are re-read through
   `.restrict(user, "add")` and the transaction is rolled back on a miss, as NetBox's own views do.
 - The menu insertion replaces the `items` tuple of the Authentication group in `ADMIN_MENU` and finds the
