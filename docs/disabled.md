@@ -68,9 +68,11 @@ A click toggles a chip between granted and not granted, as for any chip. A disab
 There is no click that puts a disabled chip back as it was. To drop the staged change, click **Discard**, which
 forgets every staged change.
 
-## Unticking
+## Revoking a disabled cell
 
-Unticking removes the cell from every permission that covers it, enabled or not. For a disabled permission:
+A disabled cell is revoked by the second click on its chip, by the second press of a row, column or app toggle, or by
+an import that does not list the cell. The revoke removes the cell from every permission that covers it, enabled or
+not. For a disabled permission:
 
 - **Assigned to this group or user alone, and the cell is all it covers**: the permission is deleted. It is never
   reused for a grant in the same change set, because its disabled flag would carry over to access that was ticked
@@ -87,14 +89,15 @@ Nobody gains access: what was disabled stays disabled.
 
 The **all** and letter toggles on rows, columns and app sections treat a disabled chip as not granted, as they do a
 constrained one. The first press grants everything on the line through enabled permissions, the disabled ones left
-alone. A second press revokes everything on the line, the disabled permissions' cells included. Click chips one by
-one where a disabled permission must be kept as it is.
+alone. A second press revokes everything on the line, the disabled permissions' cells included. To keep a disabled
+permission as it is, do not use the line toggles: click the other chips one by one and leave the disabled ones alone.
 
 ## Enabling and disabling
 
 The **Enabled** switch is in the [gear panel](matrix.md#the-gear-panel):
 
-1. Click the gear next to the group or user's name.
+1. Click the gear in the column header. On the group tab, use the header of an action the permission grants. A
+   single-action tab lists only the permissions that grant its action; the all-actions grid lists them all.
 2. Open the permission. Check the summary line: it says which actions it has and how many object types it covers.
    The switch applies to all of them.
 3. Turn **Enabled** on or off.
@@ -141,13 +144,16 @@ disabled:
       permission: noc_v
 ```
 
-An import never enables, disables or creates a disabled permission:
+An import never enables or disables a permission, and never adds a grant to a disabled one:
 
 - a cell listed under `disabled` keeps whatever covers it on the target today. The review warns when nothing grants
-  it there, or when it is granted there without constraints;
+  it there, or when it is granted there without constraints. If the target covers the cell with an enabled
+  constrained permission, it keeps that access and the review does not warn;
 - a cell listed under `grants` that is disabled on the target is granted through an enabled permission, as a click
   would;
-- a cell in the file's scope that is not listed anywhere is revoked, also from disabled permissions.
+- a cell in the file's scope that is not listed anywhere is revoked, also from disabled permissions. That can split
+  a disabled permission, and the parts it keeps stay disabled (see
+  [Revoking a disabled cell](#revoking-a-disabled-cell)).
 
 ## REST API
 

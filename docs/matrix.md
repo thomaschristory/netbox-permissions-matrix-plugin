@@ -66,7 +66,7 @@ Each chip, or box on a single-action tab, shows one of these states:
 |------|-------|---------|
 | empty | Not granted | No permission covers the cell. |
 | filled green | Granted | At least one enabled permission without constraints covers the cell. |
-| half filled | Constrained | Only permissions with [constraints](constraints.md) cover the cell: access to some objects, not all. |
+| half filled | Constrained | Only enabled permissions with [constraints](constraints.md) cover the cell (disabled ones are ignored): access to some objects, not all. |
 | filled grey, faded | Disabled | Only [disabled](disabled.md) permissions cover the cell. NetBox ignores them. |
 | coloured outline | Staged | Changed on the page, not applied yet. |
 
@@ -86,8 +86,8 @@ In the all-actions grid, each column header has a row of letters: click one to t
 column. Each row and app section reads **all V A C D ...**: **all** toggles every action in every visible column,
 and a letter toggles only that action, for example **D** on the Device row gives or takes delete on Device for
 every group shown. On a single-action tab, column headers, rows and app sections have an **all** toggle for that
-action. Each toggle ticks every visible, enabled
-cell in its line, or unticks them all if they are already ticked.
+action. Each toggle ticks every visible cell in its line whose action
+applies to the object type, or unticks them all if they are already ticked.
 
 Changes are only staged in your browser. The bar at the bottom counts them; **Discard** forgets them. Leaving the
 page with staged changes asks for confirmation.

@@ -47,7 +47,8 @@ The [who can](who-can.md) page lists constrained access with its constraints, fo
 
 Constraints are set per permission, in the [gear panel](matrix.md#the-gear-panel):
 
-1. Click the gear next to the group or user's name.
+1. Click the gear in the column header. On the group tab, use the header of an action the permission grants. A
+   single-action tab lists only the permissions that grant its action; the all-actions grid lists them all.
 2. Open the permission to constrain. Check the summary line first: it says which actions the permission has and how
    many object types it covers. The constraint will apply to all of them.
 3. Type the constraint in **Constraints**, for example `{"site__slug": "paris"}`.
