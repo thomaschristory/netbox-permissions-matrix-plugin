@@ -67,7 +67,7 @@ Each chip, or box on a single-action tab, shows one of these states:
 | empty | Not granted | No permission covers the cell. |
 | filled green | Granted | At least one enabled permission without constraints covers the cell. |
 | half filled | Constrained | Only permissions with [constraints](constraints.md) cover the cell: access to some objects, not all. |
-| ticked, dimmed | Disabled | Only disabled permissions cover the cell. NetBox ignores them. |
+| filled grey, faded | Disabled | Only [disabled](disabled.md) permissions cover the cell. NetBox ignores them. |
 | coloured outline | Staged | Changed on the page, not applied yet. |
 
 Hover a chip or box to see every permission that covers it, with its constraints.
@@ -79,7 +79,8 @@ user column changes the user's own permissions, never the group's.
 ## Changing cells
 
 Click a chip (or a box on a single-action tab) to toggle it between granted and not granted. A constrained or
-disabled one becomes granted on the first click; the second click revokes it completely.
+disabled one becomes granted on the first click; the second click revokes it completely. See
+[Constraints](constraints.md) and [Disabled permissions](disabled.md).
 
 In the all-actions grid, each column header has a row of letters: click one to toggle that action for the whole
 column. Each row and app section reads **all V A C D ...**: **all** toggles every action in every visible column,
@@ -98,7 +99,8 @@ would create, change or delete, field by field, with the groups and users each c
 [How changes map to permissions](changes.md) explains the rules.
 
 **Apply** writes the plan in one transaction. If someone changed one of the permissions involved since the review,
-nothing is written and the page asks you to reload.
+took a name the review gives, or deleted a group or user in it, nothing is written and the page asks you to reload.
+See [Concurrent changes](changes.md#concurrent-changes).
 
 ## The gear panel
 
@@ -121,7 +123,7 @@ another object type in one go, the new grant goes into a new permission and is n
 cell changes remove everything from a permission you also edited, the permission is deleted and the review warns
 that the edit is lost.
 
-Adding constraints to a simple permission such as `ops_va`, or disabling it, makes it no longer simple: the review warns that new
+Adding constraints to a simple permission such as `ops_va`, or [disabling](disabled.md) it, makes it no longer simple: the review warns that new
 grants of view and add for Ops will then go into a new permission (`ops_va 2`). To give a group constrained access
 to some object types and full access to others, keep them in separate permissions. To add actions, groups or users
 to a permission, use its page in NetBox or the [REST API](api.md).

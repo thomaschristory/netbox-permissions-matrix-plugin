@@ -38,7 +38,8 @@ cannot move a device to Lyon.
 
 A chip (or box) is **half filled** when only constrained permissions cover it: the group or user has the action on
 some objects of that type, not all. Hover it to see the permissions and their constraints. If any enabled permission
-without constraints also covers it, the chip is simply granted.
+without constraints also covers it, the chip is simply granted. Disabled permissions do not count, constrained or
+not: see [Disabled permissions](disabled.md).
 
 The [who can](who-can.md) page lists constrained access with its constraints, for every user who gets it.
 

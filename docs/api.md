@@ -55,6 +55,8 @@ The response:
   in [How changes map to permissions](changes.md): `noc_va` is simple there but appears under `others` for view.
 - Permission objects in `perms`, `simple` and `others` also carry `description`, `actions`, `object_types`,
   `constraints`, `principals` and `url`.
+- Groups and users you may not view are not named: in `principals` and `inherited.groups` their name reads "a group
+  you cannot view" or "a user you cannot view".
 
 With `action=*` the response has `"action": "*"` and three differences:
 

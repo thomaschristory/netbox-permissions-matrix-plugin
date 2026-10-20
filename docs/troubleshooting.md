@@ -29,7 +29,7 @@ needs unconstrained view access. See [Permissions](permissions.md).
 ## "The permissions changed since this plan was made"
 
 Someone (or another tab) changed a permission of a group or user in your change set between **Review changes** and
-**Apply**. Nothing was written. Reload the page; your staged changes are lost, so stage them again and review.
+**Apply**, or took a name the review gives a permission (or freed one it had to avoid). Nothing was written. Reload the page; your staged changes are lost, so stage them again and review.
 
 ## "A group or user in this plan was deleted while it was applied"
 

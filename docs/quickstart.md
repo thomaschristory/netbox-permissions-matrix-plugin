@@ -16,8 +16,8 @@ or users.
 
 ## 2. Read it
 
-- A green chip means granted. A half-filled chip means granted under constraints, for some objects only. A dimmed
-  chip means only a disabled permission covers it. See [cell states](matrix.md#cell-states).
+- A green chip means granted. A half-filled chip means granted under constraints, for some objects only. A grey,
+  faded chip means only a disabled permission covers it. See [cell states](matrix.md#cell-states).
 - Hover a chip to see which permissions cover it.
 - Type in the search box, or pick an app, to narrow the rows. Use **Users** to add columns for users who have
   permissions of their own.

@@ -96,8 +96,8 @@ URL `/plugins/permissions-matrix/`. Menu entry "Permissions Matrix" in Admin > A
   Users who get access only through a group do not get a column; the "Who can" page shows them. Both choices are kept
   in the URL so they can be bookmarked.
 - A user column shows the user's **direct** permissions. Access the user also gets through a group is shown as a
-  small "inherited" marker in the cell, with the group named in the tooltip. The marker is never editable from the
-  user column: changing it would change the group. Ticking such a cell adds a direct grant for the user.
+  small "inherited" marker in the cell, with the group named in the tooltip ("a group you cannot view" for a group
+  the viewer may not view). The marker is never editable from the user column: changing it would change the group. Ticking such a cell adds a direct grant for the user.
 - Object types that existing permissions reference but that NetBox does not offer in the permission form (for
   example non-public types set through the API) have no row. The planner still keeps them intact when it rewrites
   or splits a permission.
@@ -118,7 +118,7 @@ Each chip on All actions, or box on a single-action tab, shows one state:
 | Not granted | empty | No permission covers the cell. |
 | Granted | filled | At least one enabled permission without constraints covers the cell. |
 | Constrained | half-filled box | Only enabled permissions with constraints cover the cell. |
-| Disabled | ticked box, dimmed | Only disabled permissions cover the cell. NetBox ignores them. |
+| Disabled | grey box, faded | Only disabled permissions cover the cell. NetBox ignores them. |
 | Staged | coloured outline | Changed in the browser, not yet applied. |
 
 Hovering a cell lists every permission that covers it, with its constraints and a link to the classic permission
@@ -139,7 +139,8 @@ its classic page. Opening an entry gives a form for:
 - enabled;
 - constraints (JSON), which apply to every object type and action of that permission.
 
-A permission shared with other principals carries a warning in its form: the edit changes their access too.
+A permission shared with other principals carries a warning in its form: the edit changes their access too. A new
+name already in use gets a number appended, and the review warns with the name that will be used.
 
 Edits made in the panel are staged per permission ID and go through the same review. The planner applies them
 before the cell changes, to the permission as the panel showed it, so a permission disabled or constrained in a
@@ -163,7 +164,8 @@ with OR), the `$user` token allowed, and a test query run against every object t
    (before and after), and states which principals each change affects.
 3. "Apply" sends the same change set again with the version token received in step 2. The server recomputes the
    plan, checks that the permissions it touches have not changed since the plan was made, and writes everything in
-   one database transaction. If anything changed meanwhile, nothing is written and the page asks to reload.
+   one database transaction. If anything changed meanwhile, or a group or user in the change set was deleted while
+   it was written, nothing is written (HTTP 409) and the page asks to reload.
 
 ## How changes map to native permissions
 
@@ -242,7 +244,9 @@ URL `/plugins/permissions-matrix/object-types/<app_label>.<model>/`. For one obj
 that holds any action on it: rows are groups and users, columns are actions, cells show the same states as the
 matrix. A second table resolves group membership: every user with effective access, which action, and through which
 group or direct permission. Superusers are listed separately because they bypass permissions. Constrained access is
-shown with its constraints, because whether it applies depends on the object.
+shown with its constraints, because whether it applies depends on the object. Groups and users the viewer may not
+view have no row in the first table; access through a hidden group still counts in the second, with the source "a
+group you cannot view".
 
 ## Group tab
 
@@ -253,16 +257,18 @@ lets an operator review or edit one group without the full matrix.
 ## Export and import
 
 - **Export** downloads the matrix as YAML: for each principal, for each action, the list of object types granted
-  without constraints, and separately the constrained grants with their constraints and permission names. The
-  export honours the current column and row filters.
+  without constraints, separately the constrained grants with their constraints and permission names, and the cells
+  covered only by disabled permissions, with the permission names. The export honours the current column and row
+  filters.
 - The file records its **scope**: the principals, actions and object types that were visible when it was exported.
   Principals are named by group name or username, object types by `app_label.model`, so a file can move between
   NetBox instances. IDs are not used.
 - **Import** uploads such a file. Within the file's scope, the file is the full desired state: listed cells are
   granted, unlisted cells are revoked. Anything outside the scope is left alone, so exporting only DCIM and
-  importing it back never touches IPAM. Constrained entries count as "granted" and keep whatever grants the cell
-  today; the import never creates constraints. If a constrained entry covers a cell that nothing grants on the
-  target, the cell is left unchanged and the review lists it as a warning.
+  importing it back never touches IPAM. Constrained and disabled entries keep whatever covers the cell today; the
+  import never creates constraints or changes the enabled flag. If such an entry names a cell that nothing grants
+  on the target, or that the target grants without constraints, the cell is left unchanged and the review lists it
+  as a warning.
 - Unknown principals or object types in the file are listed as errors in the review, and their entries are skipped;
   the import never creates groups or users. The result is staged and goes through the normal review.
 
@@ -333,7 +339,7 @@ group or the Permissions item cannot be found, the plugin logs a warning and fal
 
 | Setting | Default | Meaning |
 |---------|---------|---------|
-| `new_permission_name` | `"{principal}_{actions}"` | Name template for simple permissions the plugin creates. `{principal}` is the group name or username as a lower-case slug, `{actions}` (or `{action}`) the action letters. |
+| `new_permission_name` | `"{principal}_{actions}"` | Name template for simple permissions the plugin creates. `{principal}` is the group name or username as a lower-case slug, `{actions}` (or `{action}`) the action letters. Checked when NetBox starts: any other placeholder, or `.` or `[...]` on one, stops NetBox with an error naming it. |
 | `menu_placement` | `"admin"` | `"admin"` puts the item below Permissions; `"plugins"` uses the Plugins menu. |
 | `show_action_tabs` | `False` | Whether the page offers the single-action tabs next to All actions. |
 | `show_users_by_default` | `False` | Whether user columns are shown when the page opens. |

@@ -56,7 +56,7 @@ For a user column, only the user's own permissions count in step 1: a group the 
 the cell, but ticking it still gives the user a direct grant.
 
 A disabled permission is not simple: ticking a cell leaves it alone and grants through an enabled permission, named
-with a number if the disabled one has the name (`noc_v 2`).
+with a number if the disabled one has the name (`noc_v 2`). See [Disabled permissions](disabled.md).
 
 ## Unticking a cell
 
@@ -106,9 +106,9 @@ NOC ends with exactly what it had minus "change Site". Ops does not change at al
 The review comes with a token covering every permission of the principals involved. If anyone changes one of them
 before you click Apply (on the classic pages, through the API, or in another matrix tab), the apply is refused and
 nothing is written. Reload the matrix and review again. The same happens if someone takes a name the review gives
-a permission, or frees a name it had to avoid: the names would no longer be the ones you reviewed. Creating,
-renaming or deleting other permissions does not block the apply. The same happens if a group or user in the change set is
-deleted while the apply runs.
+a permission, or frees a name it had to avoid: the names would no longer be the ones you reviewed. It also happens
+if a group or user in the change set is deleted while the apply runs. Creating, renaming or deleting other
+permissions does not block the apply.
 
 ## History
 
