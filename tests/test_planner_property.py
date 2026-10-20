@@ -241,6 +241,27 @@ def check_with_edits(snap: Snapshot, changes, edits, principals, types, actions)
                 assert getattr(perm, attr) == getattr(e, attr), (e, perm)
         if e.name is not UNSET and e.name != snap.perms[e.perm_id].name:
             assert name_as_asked(perm.name, e.name), (e, perm)
+    # Edits by ID of a permission not assigned to the principal are left out entirely.
+    assigned = [e for e in by_id if snap.perms[e.perm_id].assigned_to(e.principal)]
+    assert first.operations == plan(snap, changes, assigned).operations
+    # Cell changes never touch the description, enabled or constraints of an existing permission, and rename it only
+    # when they reshape it: every permission keeps those fields as the panel asked, or as they were when not edited.
+    for pid, was in asked.items():
+        now = middle.get(str(pid))
+        if now is None:
+            continue
+        assert (now.description, now.enabled, now.constraints) == (was.description, was.enabled, was.constraints), (
+            pid,
+            now,
+            was,
+        )
+        reshaped = (now.actions, now.object_types) != (was.actions, was.object_types)
+        if not reshaped:
+            assert name_as_asked(now.name, was.name) if was.name != snap.perms[pid].name else now.name == was.name, (
+                pid,
+                now,
+                was,
+            )
 
     # Edits by action then change only the principal's own permission for that one action, and only as asked.
     result = plan(snap, changes, edits)
