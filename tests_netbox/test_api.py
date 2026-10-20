@@ -155,6 +155,27 @@ class PlanApplyTest(APITestBase):
         self.assertEqual(response.status_code, 409)
         self.assertEqual(perm_state(ObjectPermission.objects.get(name="NOC | view"))["object_types"], ["dcim.site"])
 
+    def test_apply_after_unrelated_permissions_are_created_renamed_or_deleted(self):
+        unrelated = make_perm("Unrelated", ["view"], ["dcim.rack"])
+        changes = [self.change(self.noc, "dcim.rack", "view", True)]
+        token = self.plan(changes).json()["token"]
+        make_perm("Also unrelated", ["view"], ["dcim.site"])
+        unrelated.name = "Renamed"
+        unrelated.save()
+        make_perm("Gone", ["view"], ["dcim.site"]).delete()
+        response = self.post(APPLY, {"changes": changes, "edits": [], "token": token})
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(perm_state(ObjectPermission.objects.get(name="noc_v"))["object_types"], ["dcim.rack"])
+
+    def test_apply_when_a_name_of_the_plan_is_taken_meanwhile_is_a_conflict(self):
+        changes = [self.change(self.noc, "dcim.rack", "view", True)]
+        data = self.plan(changes).json()
+        self.assertEqual([o["after"]["name"] for o in data["operations"]], ["noc_v"])
+        make_perm("noc_v", ["view"], ["dcim.site"])
+        response = self.post(APPLY, {"changes": changes, "edits": [], "token": data["token"]})
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(ObjectPermission.objects.filter(name__startswith="noc_v").count(), 1)
+
     def test_apply_when_a_group_is_deleted_meanwhile_is_a_conflict(self):
         from unittest import mock
 

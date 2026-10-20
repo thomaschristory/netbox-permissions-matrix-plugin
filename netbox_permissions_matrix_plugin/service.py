@@ -156,7 +156,7 @@ def plan_for(user, changes, edits) -> tuple[Snapshot, Plan, str]:
     result = make_plan(snap, changes, edits, name_template=get_setting("new_permission_name"))
     validate_constraints(result)
     # The token is made from the real names; the plan is shown without the names the user may not see.
-    return for_viewer(snap, groups, users), result, version_token(snap, refs)
+    return for_viewer(snap, groups, users), result, version_token(snap, refs, result)
 
 
 def principal_json(snap: Snapshot, ref: PrincipalRef) -> dict:

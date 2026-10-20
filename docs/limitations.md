@@ -62,6 +62,6 @@ limited to some permissions by constraints cannot use it, and should keep using 
 ## Changes made elsewhere
 
 The matrix reads permissions when it loads. If, before you apply, someone changes a permission assigned to a group or
-user in your staged changes, or creates, renames or deletes any permission (new names could clash with the ones your
-plan creates), apply refuses and asks you to review again, so nothing is overwritten. Other changes, such as editing
-a permission of an unrelated group, do not block it.
+user in your staged changes, or takes a name your plan gives a permission, apply refuses and asks you to review
+again, so nothing is overwritten. Other changes, such as editing a permission of an unrelated group, or creating,
+renaming or deleting other permissions, do not block it.

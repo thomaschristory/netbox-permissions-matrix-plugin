@@ -6,7 +6,7 @@ import hashlib
 import json
 from collections.abc import Iterable
 
-from .model import Perm, PrincipalRef, Snapshot
+from .model import Perm, Plan, PrincipalRef, Snapshot
 
 
 def _perm_data(perm: Perm) -> dict:
@@ -23,17 +23,19 @@ def _perm_data(perm: Perm) -> dict:
     }
 
 
-def version_token(snap: Snapshot, refs: Iterable[PrincipalRef]) -> str:
+def version_token(snap: Snapshot, refs: Iterable[PrincipalRef], plan: Plan) -> str:
     """Hash of everything a plan for these principals depends on.
 
     That is every permission assigned to any of them (also the ones the plan leaves alone: whether a cell is
-    already covered, or which permission is the simple one, depends on them), every permission name (for name
-    clashes), and the principals themselves.
+    already covered, or which permission is the simple one, depends on them), the principals themselves, and the
+    names the plan gives. Apply plans again and compares tokens, so other permissions may be created, renamed or
+    deleted meanwhile: only a change to the names the plan would give (a name it uses is taken, or one it had to
+    avoid is free again) refuses the apply.
     """
     refs = sorted(set(refs))
     data = {
         "perms": [_perm_data(p) for _, p in sorted(snap.perms.items()) if any(p.assigned_to(r) for r in refs)],
-        "names": sorted(p.name for p in snap.perms.values()),
+        "names": [[op.key, op.after.name] for op in plan.operations if op.after is not None],
         "principals": [[r.key, snap.name_of(r)] for r in refs],
     }
     return hashlib.sha256(json.dumps(data, sort_keys=True, default=str).encode()).hexdigest()
