@@ -380,7 +380,12 @@ def _edit(work: _Work, edit: PermEdit) -> None:
             fields[attr] = value
     if "name" in fields and fields["name"] != perm.name:
         work.names.discard(perm.name)
-        fields["name"] = work.unique_name(fields["name"])
+        typed = fields["name"][:NAME_MAX]
+        fields["name"] = work.unique_name(typed)
+        if fields["name"] != typed:
+            work.warnings.append(
+                f"The name {typed} is already taken: {perm.name} will be renamed {fields['name']} instead."
+            )
         work.named.add(key)
     if edit.add_actions:
         fields["actions"] = perm.actions + tuple(a for a in edit.add_actions if a not in perm.actions)

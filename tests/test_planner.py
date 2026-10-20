@@ -483,3 +483,17 @@ def test_a_name_typed_in_the_panel_is_kept_even_if_it_looks_generated():
     result = plan(snap, [grant(NOC, "dcim.device", "add")], [PermEdit(NOC, perm_id=5, name="noc_v")])
     (update,) = result.operations
     assert (update.key, update.after.name, update.after.actions) == ("5", "noc_v", ("view", "add"))
+
+
+def test_renaming_to_a_name_in_use_warns_with_the_name_used():
+    snap = snapshot(perm(1, "noc_v", ["view"], ["dcim.site"], NOC), perm(2, "NOC | view", ["view"], [], OPS))
+    result = plan(snap, [], [PermEdit(NOC, perm_id=1, name="NOC | view")])
+    (update,) = result.operations
+    assert update.after.name == "NOC | view 2"
+    assert result.warnings == ["The name NOC | view is already taken: noc_v will be renamed NOC | view 2 instead."]
+
+
+def test_renaming_to_a_free_name_does_not_warn():
+    snap = snapshot(perm(1, "noc_v", ["view"], ["dcim.site"], NOC))
+    result = plan(snap, [], [PermEdit(NOC, perm_id=1, name="NOC readers")])
+    assert result.warnings == []

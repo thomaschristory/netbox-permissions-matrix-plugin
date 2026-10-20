@@ -113,8 +113,8 @@ it covers, and links to its page in NetBox. Open one to edit:
 ![The gear panel for Ops, with constraints on ops_d](img/gear-panel.png)
 
 Panel changes are staged and reviewed like cell changes. A permission shared with other groups or users says so at
-the top of its form: editing it changes their access too. If a new name is already taken, the review shows it with
-a number appended.
+the top of its form: editing it changes their access too. If a new name is already taken, the review warns and
+shows the name that will be used instead, with a number appended (`NOC | view 2`).
 
 Panel edits are applied before the cell changes of the same review. So if you disable `noc_v` and tick view on
 another object type in one go, the new grant goes into a new permission and is not disabled with `noc_v`. If the
