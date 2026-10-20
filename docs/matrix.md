@@ -96,8 +96,9 @@ Each toggle ticks every visible cell in its line whose action applies to the obj
 they are already ticked.
 
 Changes are only staged in your browser. The bar at the bottom counts them and flashes briefly with each change.
-**Revert last** (or Ctrl+Z, Cmd+Z on a Mac, outside text fields) takes back the last change: a cell, a toggle, the
-gear panel, an import or a Discard. Click it again to go further back. **Discard** forgets every staged change.
+**Revert last** (or Ctrl+Z, Cmd+Z on a Mac, outside text fields and dialogs) takes back the last change: a cell, a
+toggle, the gear panel, an import or a Discard. Click it again to go further back, up to the last Apply or reload.
+**Discard** forgets every staged change.
 Leaving the page with staged changes asks for confirmation.
 
 ## Review and apply

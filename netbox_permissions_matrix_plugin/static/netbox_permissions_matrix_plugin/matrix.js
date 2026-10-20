@@ -195,7 +195,8 @@
 
   const HISTORY_LIMIT = 200;
   const snapshot = () => ({ staged: new Map(state.staged), edits: new Map(state.edits), importNotes: state.importNotes });
-  const sameStaged = (a, b) => json([...a.staged]) === json([...b.staged]) && json([...a.edits]) === json([...b.edits]);
+  const sameStaged = (a, b) =>
+    a.importNotes === b.importNotes && json([...a.staged]) === json([...b.staged]) && json([...a.edits]) === json([...b.edits]);
 
   // Runs one user change (a cell, a toggle, the gear panel, an import, Discard) and remembers what was staged before it,
   // unless it changed nothing.
