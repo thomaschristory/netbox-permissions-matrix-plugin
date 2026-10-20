@@ -202,7 +202,8 @@ def who_can(user, label: str) -> dict:
 
     Groups and users the viewer may not view have no row and are not named. Effective access still counts the groups:
     a visible user who gets access only through a hidden group is listed, with "a group you cannot view" as the
-    source. hidden_groups and hidden_users say when something was left out, so the page can say so."""
+    source. hidden_groups and hidden_users say when the first table left someone out, hidden_effective and
+    hidden_superusers when the effective access or the superusers did, so the page can say so."""
     from core.models import ObjectType
 
     from .core.cells import covering, state_of
@@ -241,10 +242,10 @@ def who_can(user, label: str) -> dict:
     direct_ids = [p["id"] for p in principals if p["type"] == USER] + [r.id for r in hidden if r.kind == USER]
     candidates = User.objects.filter(is_active=True).filter(Q(groups__in=group_ids) | Q(pk__in=direct_ids))
     candidates = candidates.distinct().prefetch_related("groups").order_by("username")
-    effective, hidden_users = [], False
+    effective, hidden_effective = [], False
     for member in candidates:
         if member.pk not in users:
-            hidden_users = True
+            hidden_effective = True
             continue
         sources = [PrincipalRef(USER, member.pk)]
         sources += sorted(
@@ -274,6 +275,7 @@ def who_can(user, label: str) -> dict:
         if row_actions:
             effective.append({"user": member, "username": member.username, "actions": row_actions})
 
+    superusers = User.objects.filter(is_superuser=True, is_active=True)
     return {
         "row": row,
         "object_type": ObjectType.objects.get(app_label=row.app_label, model=label.split(".")[1]),
@@ -281,8 +283,10 @@ def who_can(user, label: str) -> dict:
         "principals": principals,
         "effective": effective,
         "hidden_groups": any(r.kind == GROUP for r in hidden),
-        "hidden_users": hidden_users or any(r.kind == USER for r in hidden),
-        "superusers": User.objects.filter(pk__in=users, is_superuser=True, is_active=True).order_by("username"),
+        "hidden_users": any(r.kind == USER for r in hidden),
+        "hidden_effective": hidden_effective,
+        "superusers": superusers.filter(pk__in=users).order_by("username"),
+        "hidden_superusers": superusers.exclude(pk__in=users).exists(),
     }
 
 

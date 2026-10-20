@@ -170,6 +170,8 @@ class WhoCanPageTest(TestCase):
         response = self.get()
         self.assertFalse(response.context["hidden_groups"])
         self.assertFalse(response.context["hidden_users"])
+        self.assertFalse(response.context["hidden_effective"])
+        self.assertFalse(response.context["hidden_superusers"])
         self.assertNotIn("pm-who-hidden", response.content.decode())
 
     def test_hidden_users_are_mentioned(self):
@@ -181,8 +183,36 @@ class WhoCanPageTest(TestCase):
         self.assertEqual([row["username"] for row in ctx["effective"]], ["alice"])
         self.assertEqual([p["name"] for p in ctx["principals"]], ["NOC", "Ops"])
         self.assertTrue(ctx["hidden_users"])
+        self.assertTrue(ctx["hidden_effective"])
         self.assertFalse(ctx["hidden_groups"])
-        self.assertIn("Users you cannot view are left out", response.content.decode())
+        html = response.content.decode()
+        self.assertIn("Some users with permissions are not listed", html)
+        self.assertIn("Users you cannot view are left out", html)
+
+    def test_hidden_members_of_a_visible_group_leave_the_first_table_alone(self):
+        from users.models import ObjectPermission
+
+        # bob gets access only through NOC, and no user the viewer cannot view has a direct grant.
+        self.bob.groups.set([self.noc])
+        ObjectPermission.objects.filter(name="dave direct").delete()
+        ObjectPermission.objects.filter(name="users.view_user").update(constraints={"username": "alice"})
+        response = self.get()
+        ctx = response.context
+        self.assertEqual([p["name"] for p in ctx["principals"]], ["NOC", "Ops"])
+        self.assertFalse(ctx["hidden_users"])
+        self.assertTrue(ctx["hidden_effective"])
+        html = response.content.decode()
+        self.assertNotIn("users with permissions are not listed", html)
+        self.assertIn("Users you cannot view are left out", html)
+
+    def test_hidden_superusers_are_mentioned(self):
+        from users.models import ObjectPermission
+
+        ObjectPermission.objects.filter(name="users.view_user").update(constraints={"username": "alice"})
+        response = self.get()
+        self.assertEqual(list(response.context["superusers"]), [])
+        self.assertTrue(response.context["hidden_superusers"])
+        self.assertIn("Some superusers are not listed", response.content.decode())
 
 
 class GroupTabTest(TestCase):

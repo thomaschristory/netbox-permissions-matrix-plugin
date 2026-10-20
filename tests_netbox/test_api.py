@@ -279,10 +279,10 @@ class PlanApplyTest(APITestBase):
         self.assertNotIn('"Ops"', json.dumps(data))
         update = next(op for op in data["operations"] if op["id"] == self.shared.pk)
         self.assertIn(HIDDEN_GROUP, [p["name"] for p in update["before"]["principals"]])
-        # The token is the same as for a viewer who can see every group, so apply still matches it.
-        ObjectPermission.objects.filter(name="users.view_group").update(constraints=None)
-        again = self.plan([self.change(self.noc, "dcim.site", "view", False)]).json()
-        self.assertEqual(again["token"], data["token"])
+        # Apply checks the plan's token against the real permissions, so it still matches.
+        changes = [self.change(self.noc, "dcim.site", "view", False)]
+        response = self.post(APPLY, {"changes": changes, "edits": [], "token": data["token"]})
+        self.assertEqual(response.status_code, 200, response.content)
 
     def test_edit_of_a_permission_of_someone_else_is_left_out(self):
         other = make_perm("ops_v", ["view"], ["dcim.site"], groups=[self.ops])

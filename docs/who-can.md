@@ -30,3 +30,4 @@ Inactive users are left out, because NetBox refuses them whatever their permissi
 Groups and users you are not allowed to view have no row in the first table, and the page says when it left some
 out. Access through a group you cannot view still counts in the second table: the user is listed, and the source
 reads "a group you cannot view". Users you cannot view are left out of the second table, and the page says so.
+The same goes for superusers you cannot view.

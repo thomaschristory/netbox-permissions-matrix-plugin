@@ -87,7 +87,7 @@
           the source.
         {% endblocktrans %}
       {% endif %}
-      {% if hidden_users %}
+      {% if hidden_effective %}
         {% trans "Users you cannot view are left out, so this list may be incomplete." %}
       {% endif %}
     </div>
@@ -134,6 +134,12 @@
       {% empty %}
         <span class="text-secondary">{% trans "None" %}</span>
       {% endfor %}
+      {% if hidden_superusers %}
+        <p class="text-secondary small mt-2 mb-0 pm-who-hidden">
+          <i class="mdi mdi-eye-off-outline" aria-hidden="true"></i>
+          {% trans "Some superusers are not listed: you cannot view them." %}
+        </p>
+      {% endif %}
     </div>
   </div>
 {% endblock %}
