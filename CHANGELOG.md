@@ -5,6 +5,11 @@ versioning: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Documentation: Disabled permissions page. How NetBox treats a disabled permission, how the matrix shows it, and
+  what ticking, unticking, the toggles, the gear panel, export and import and the REST API do with it.
+
 ### Changed
 
 - **Groups** and **Users** buttons replace the Columns button and the Users switch: each picks the columns of its

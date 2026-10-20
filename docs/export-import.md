@@ -83,8 +83,9 @@ permissions, and revoking from a shared permission splits it so nobody else lose
 
 ### Constrained and disabled entries
 
-The import never creates or changes constraints. A cell listed under `constrained` or `disabled` keeps whatever grants
-it on the target today. The review warns in two cases:
+The import never creates or changes constraints, and never changes a permission's enabled flag. A cell listed under
+`constrained` or `disabled` keeps whatever covers it on the target today. If the target covers it with an enabled
+constrained permission, it keeps that access and the review does not warn. The review warns in two cases:
 
 - nothing grants the cell on the target: it stays not granted;
 - the target grants the cell without constraints: it stays granted, so the target gives more access than the file.

@@ -17,9 +17,10 @@ one lists the permissions behind it.
 
 ## Effective access
 
-The second table resolves group membership: one row per user who can do anything with the object type, with each
+The second table resolves group membership: one row per user that any permission on the object type covers, with each
 action and where it comes from (a direct permission, or the groups that grant it). Constrained access is shown with
-its constraints, because whether it applies depends on the object.
+its constraints, because whether it applies depends on the object. An action shown grey comes only from
+[disabled permissions](disabled.md#who-can) and gives no access.
 
 Superusers are listed separately: they bypass permissions and can do everything.
 
