@@ -1,5 +1,5 @@
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.http import Http404
 from rest_framework import status
 from rest_framework.exceptions import NotFound
@@ -112,6 +112,10 @@ class PlanView(APIView):
         return Response(service.plan_json(snap, result, token))
 
 
+def _conflict(detail):
+    return Response({"detail": detail}, status=status.HTTP_409_CONFLICT)
+
+
 class ApplyView(APIView):
     """Apply a change set in one transaction, if nothing changed since it was planned."""
 
@@ -123,16 +127,17 @@ class ApplyView(APIView):
         data = _change_set(request)
         if not data.get("token"):
             raise APIValidationError({"token": ["Plan the change set first and send the token it returned."]})
-        with transaction.atomic():
-            # Lock the permission table for the plan-and-write, so two applies cannot interleave.
-            loader.lock_permissions()
-            snap, result, token = service.plan_for(request.user, data["changes"], data["edits"])
-            if token != data["token"]:
-                return Response(
-                    {"detail": "The permissions changed since this plan was made. Reload and review again."},
-                    status=status.HTTP_409_CONFLICT,
-                )
-            written = apply_plan(result, request.user)
+        try:
+            with transaction.atomic():
+                # Lock the permission table for the plan-and-write, so two applies cannot interleave.
+                loader.lock_permissions()
+                snap, result, token = service.plan_for(request.user, data["changes"], data["edits"])
+                if token != data["token"]:
+                    return _conflict("The permissions changed since this plan was made. Reload and review again.")
+                written = apply_plan(result, request.user)
+        except IntegrityError:
+            # A group or user of the plan was deleted while it was written. The transaction is rolled back.
+            return _conflict("A group or user in this plan was deleted while it was applied. Reload and review again.")
         body = service.plan_json(snap, result, token)
         body["written"] = written
         return Response(body)

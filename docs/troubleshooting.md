@@ -31,6 +31,11 @@ needs unconstrained view access. See [Permissions](permissions.md).
 Someone (or another tab) changed a permission of a group or user in your change set between **Review changes** and
 **Apply**. Nothing was written. Reload the page; your staged changes are lost, so stage them again and review.
 
+## "A group or user in this plan was deleted while it was applied"
+
+Someone deleted a group or user in your change set while the apply was writing it. Nothing was written. Reload the
+page, stage your changes again and review.
+
 ## "You are not allowed to add, change or delete the permission ..."
 
 One operation of the plan needs a right you do not have, for example creating a permission during a split when you

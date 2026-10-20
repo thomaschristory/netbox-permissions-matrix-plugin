@@ -1,7 +1,7 @@
 import json
 
 from django.urls import reverse
-from users.models import ObjectPermission
+from users.models import Group, ObjectPermission
 from utilities.testing import TestCase
 
 from netbox_permissions_matrix_plugin.core.model import HIDDEN_GROUP
@@ -154,6 +154,30 @@ class PlanApplyTest(APITestBase):
         response = self.post(APPLY, {"changes": changes, "edits": [], "token": token})
         self.assertEqual(response.status_code, 409)
         self.assertEqual(perm_state(ObjectPermission.objects.get(name="NOC | view"))["object_types"], ["dcim.site"])
+
+    def test_apply_when_a_group_is_deleted_meanwhile_is_a_conflict(self):
+        from unittest import mock
+
+        from netbox_permissions_matrix_plugin import service
+
+        ops_id = self.ops.pk
+        changes = [self.change(self.ops, "dcim.rack", "view", True)]
+        token = self.plan(changes).json()["token"]
+        plan_for = service.plan_for
+
+        def plan_then_delete(*args, **kwargs):
+            # The group goes after the apply has planned, so the token still matches and the write hits a missing row.
+            planned = plan_for(*args, **kwargs)
+            Group.objects.filter(pk=ops_id).delete()
+            return planned
+
+        with mock.patch.object(service, "plan_for", plan_then_delete):
+            response = self.post(APPLY, {"changes": changes, "edits": [], "token": token})
+        self.assertEqual(response.status_code, 409, response.content)
+        self.assertIn("Reload and review again", response.json()["detail"])
+        self.assertTrue(Group.objects.filter(pk=ops_id).exists())
+        self.assertEqual(perm_state(self.shared), self.before)
+        self.assertFalse(ObjectPermission.objects.filter(name__startswith="Ops").exists())
 
     def test_apply_without_add_permission_writes_nothing(self):
         ObjectPermission.objects.filter(name="users.add_objectpermission").delete()

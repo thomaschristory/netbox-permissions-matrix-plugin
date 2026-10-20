@@ -22,6 +22,8 @@ versioning: [SemVer](https://semver.org/).
 - A `new_permission_name` with an unknown placeholder, such as `{team}`, no longer makes every review that creates a
   permission fail with a 500. NetBox now refuses to start and the error names the placeholder.
   Attribute or index access, such as `{principal[2]}`, is refused the same way.
+- Apply returns a 409 asking you to reload and review again when a group or user in the plan is deleted while it is
+  written, instead of a server error. Nothing is written.
 
 ## [0.2.0] - 2026-10-19
 
