@@ -1,5 +1,7 @@
+import pytest
+
 from netbox_permissions_matrix_plugin.core.model import CellChange, PermEdit
-from netbox_permissions_matrix_plugin.core.planner import action_letters, canonical, plan, slug
+from netbox_permissions_matrix_plugin.core.planner import action_letters, canonical, check_name_template, plan, slug
 
 from .factories import ALICE, NOC, OPS, perm, snapshot
 
@@ -57,6 +59,35 @@ def test_custom_name_template():
     ).operations
     assert create.after.name == "v for alice"
     assert create.after.users == {ALICE.id}
+
+
+@pytest.mark.parametrize(
+    "template",
+    ["{principal}_{actions}", "{actions} for {principal}", "{principal} | {action}", "fixed", "{{x}}_{principal}"],
+)
+def test_valid_name_templates_pass(template):
+    check_name_template(template)
+
+
+@pytest.mark.parametrize(
+    ("template", "message"),
+    [
+        ("{principal}_{team}", "unknown placeholder {team}"),
+        ("{team.name}_{actions}", "unknown placeholder {team}"),
+        ("{team[0]}", "unknown placeholder {team}"),
+        ("{principal}_{}", "positional placeholder"),
+        ("{principal}_{0}", "positional placeholder"),
+        ("{principal", "expected '}'"),
+        ("{principal:d}", "Unknown format code"),
+        ("{principal.nope}", "has no attribute 'nope'"),
+        ("", "empty"),
+        (None, "must be a string"),
+    ],
+)
+def test_invalid_name_templates_are_rejected(template, message):
+    with pytest.raises(ValueError, match="new_permission_name") as excinfo:
+        check_name_template(template)
+    assert message in str(excinfo.value)
 
 
 def test_name_clash_appends_a_number():

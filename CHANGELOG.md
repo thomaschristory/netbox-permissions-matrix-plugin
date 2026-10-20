@@ -15,6 +15,8 @@ versioning: [SemVer](https://semver.org/).
 
 - Browsers no longer keep an old `matrix.js` or `matrix.css` after the files change between releases: their URLs
   carry a hash of the contents instead of the plugin version.
+- A `new_permission_name` with an unknown placeholder, such as `{team}`, no longer makes every review that creates a
+  permission fail with a 500. NetBox now refuses to start and the error names the placeholder.
 
 ## [0.2.0] - 2026-10-19
 

@@ -19,7 +19,7 @@ PLUGINS_CONFIG = {
 
 | Setting | Default | Meaning |
 |---------|---------|---------|
-| `new_permission_name` | `"{principal}_{actions}"` | Name of the permissions the plugin creates for new grants. `{principal}` is the group name or username in lower case, with other characters turned into `_`; `{actions}` is the action letters, such as `vac` (see [Action letters](changes.md#action-letters)). `{action}` is accepted as another name for `{actions}`. A number is appended when the name is already taken. |
+| `new_permission_name` | `"{principal}_{actions}"` | Name of the permissions the plugin creates for new grants. `{principal}` is the group name or username in lower case, with other characters turned into `_`; `{actions}` is the action letters, such as `vac` (see [Action letters](changes.md#action-letters)). `{action}` is accepted as another name for `{actions}`. A number is appended when the name is already taken. NetBox does not start when the pattern uses any other placeholder; the error names it. |
 | `menu_placement` | `"admin"` | `"admin"` puts "Permissions Matrix" right below "Permissions" in Admin > Authentication. `"plugins"` puts it in the Plugins menu instead. |
 | `show_action_tabs` | `False` | Whether the matrix page also has one tab per action (View, Add, Change, Delete, custom actions) next to All actions. Off, the page only shows the all-actions grid and ignores `?action=` in the URL. The group tab and the REST API are not affected. |
 | `show_users_by_default` | `False` | Whether the matrix opens with every user column shown. The **Users** picker on the page changes it per visit. |

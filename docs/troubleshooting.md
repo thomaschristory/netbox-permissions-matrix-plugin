@@ -14,6 +14,12 @@
 The page needs its static files. Run `python manage.py collectstatic --no-input` after installing or upgrading the
 plugin. The page asks for them by a hash of their contents, so browsers fetch new versions by themselves.
 
+## NetBox does not start: "PLUGINS_CONFIG new_permission_name ..."
+
+The `new_permission_name` setting cannot name a permission. The error says why, for example
+`unknown placeholder {team}`. Only `{principal}`, `{actions}` and `{action}` are known. Write a literal brace as
+`{{` or `}}`. Fix the setting and start NetBox again; see [Configuration](configuration.md).
+
 ## "The permissions matrix needs view access to all permissions"
 
 Your view permission on permissions has constraints. The matrix shows and plans against every permission, so it

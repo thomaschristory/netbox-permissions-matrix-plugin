@@ -22,4 +22,22 @@ if PluginConfig is not None:
         required_settings = []
         default_settings = DEFAULTS
 
+        def ready(self):
+            super().ready()
+            self.check_settings()
+
+        @staticmethod
+        def check_settings():
+            # A bad new_permission_name would only fail when a review names a new permission, as a 500; stop NetBox
+            # from starting instead, with the reason.
+            from django.core.exceptions import ImproperlyConfigured
+
+            from .conf import get_setting
+            from .core.planner import check_name_template
+
+            try:
+                check_name_template(get_setting("new_permission_name"))
+            except ValueError as e:
+                raise ImproperlyConfigured(str(e)) from None
+
     config = PermissionsMatrixConfig

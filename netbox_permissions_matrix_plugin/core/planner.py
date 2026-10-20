@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import dataclasses
 import re
+import string
 from collections import defaultdict
 from collections.abc import Iterable
 
@@ -119,9 +120,39 @@ def _dedupe(changes: Iterable[CellChange]) -> list[CellChange]:
     return [last[k] for k in sorted(last)]
 
 
+NAME_PLACEHOLDERS = ("principal", "actions", "action")
+
+
+def _format_name(template: str, principal: str, letters: str) -> str:
+    return template.format(principal=principal, actions=letters, action=letters)
+
+
+def check_name_template(template) -> None:
+    """Raise ValueError naming the problem when the new_permission_name template cannot name a permission."""
+    prefix = f"PLUGINS_CONFIG new_permission_name {template!r}"
+    if not isinstance(template, str):
+        raise ValueError(f"{prefix}: must be a string")
+    if not template:
+        raise ValueError(f"{prefix}: must not be empty")
+    known = ", ".join("{" + p + "}" for p in NAME_PLACEHOLDERS)
+    try:
+        fields = [field for _, field, _, _ in string.Formatter().parse(template) if field is not None]
+    except ValueError as e:
+        raise ValueError(f"{prefix}: {e}") from None
+    for field in fields:
+        root = re.match(r"[^.\[]*", field).group()
+        if root == "" or root.isdigit():
+            raise ValueError(f"{prefix}: positional placeholder {{{field}}} is not supported; use {known}")
+        if root not in NAME_PLACEHOLDERS:
+            raise ValueError(f"{prefix}: unknown placeholder {{{root}}}; use {known}")
+    try:
+        _format_name(template, "noc", "v")
+    except (AttributeError, IndexError, KeyError, TypeError, ValueError) as e:
+        raise ValueError(f"{prefix}: {e}") from None
+
+
 def _generated_name(work: _Work, ref: PrincipalRef, actions: Iterable[str], template: str) -> str:
-    letters = action_letters(actions)
-    return template.format(principal=slug(work.snap.name_of(ref)), actions=letters, action=letters)
+    return _format_name(template, slug(work.snap.name_of(ref)), action_letters(actions))
 
 
 LEGACY_NAME_TEMPLATE = "{principal} | {action}"  # the default up to 0.1.0, one action per permission
