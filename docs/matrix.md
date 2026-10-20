@@ -9,13 +9,13 @@ Open **Admin > Authentication > Permissions Matrix**.
 
                             |   NOC ⚙       |   Ops ⚙       |
                             | [V A C D R S] | [V A C D R S] |
-  DCIM      all V A C D R S |               |               |
+  DCIM      all V A C D R S | [V A C D R  ] | [V A C D R  ] |
     Device  all V A C D R   |  V A C D R    |  V A C D R    |
     Site    all V A C D     |  V A C D      |  V A C D      |
-  Core      all V A C D R S |               |               |
+  Core      all V A C D R S | [V A C D   S] | [V A C D   S] |
     Data S. all V A C D   S |  V A C D   S  |  V A C D   S  |
 
-                                            3 changes staged   [Discard] [Review changes]
+                            3 changes staged   [Revert last] [Discard] [Review changes]
 ```
 
 ## Actions
@@ -86,11 +86,19 @@ In the all-actions grid, each column header has a row of letters: click one to t
 column. Each row and app section reads **all V A C D ...**: **all** toggles every action in every visible column,
 and a letter toggles only that action, for example **D** on the Device row gives or takes delete on Device for
 every group shown. On a single-action tab, column headers, rows and app sections have an **all** toggle for that
-action. Each toggle ticks every visible cell in its line whose action
-applies to the object type, or unticks them all if they are already ticked.
+action.
 
-Changes are only staged in your browser. The bar at the bottom counts them; **Discard** forgets them. Leaving the
-page with staged changes asks for confirmation.
+App sections also have letters in each column, lined up with the chips below: one toggles that action on every row
+of the app for that group or user only. **V A C D** on the Core line under NOC gives NOC every right on Core, one
+action at a time. On a single-action tab, each column has the letter of its action.
+
+Each toggle ticks every visible cell in its line whose action applies to the object type, or unticks them all if
+they are already ticked.
+
+Changes are only staged in your browser. The bar at the bottom counts them and flashes briefly with each change.
+**Revert last** (or Ctrl+Z, Cmd+Z on a Mac, outside text fields) takes back the last change: a cell, a toggle, the
+gear panel, an import or a Discard. Click it again to go further back. **Discard** forgets every staged change.
+Leaving the page with staged changes asks for confirmation.
 
 ## Review and apply
 

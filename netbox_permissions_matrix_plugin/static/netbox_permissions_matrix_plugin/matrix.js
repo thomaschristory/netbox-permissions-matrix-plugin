@@ -53,6 +53,7 @@
     edits: new Map(), // "<principal key>|#<permission ID>" -> gear panel edit
     plan: null,
     importNotes: null, // warnings and errors from the last import, shown in the review
+    history: [], // what was staged before each change, newest last, for Revert last
   };
 
   /* ---------- API ---------- */
@@ -190,6 +191,41 @@
     else state.staged.set(key, { principal: col.principal, object_type: ot, action, granted });
   }
 
+  /* ---------- Undo ---------- */
+
+  const HISTORY_LIMIT = 200;
+  const snapshot = () => ({ staged: new Map(state.staged), edits: new Map(state.edits), importNotes: state.importNotes });
+  const sameStaged = (a, b) => json([...a.staged]) === json([...b.staged]) && json([...a.edits]) === json([...b.edits]);
+
+  // Runs one user change (a cell, a toggle, the gear panel, an import, Discard) and remembers what was staged before it,
+  // unless it changed nothing.
+  function change(fn) {
+    const before = snapshot();
+    fn();
+    if (sameStaged(before, snapshot())) return;
+    state.history.push(before);
+    if (state.history.length > HISTORY_LIMIT) state.history.shift();
+    flashBar();
+  }
+
+  // A brief pulse on the staged-changes bar, so each change is seen and Revert last is in view.
+  function flashBar() {
+    const bar = $(".pm-bar");
+    if (!bar) return;
+    bar.classList.remove("pm-flash");
+    void bar.offsetWidth; // restart the animation
+    bar.classList.add("pm-flash");
+  }
+
+  function revertLast() {
+    const before = state.history.pop();
+    if (!before) return;
+    state.staged = before.staged;
+    state.edits = before.edits;
+    state.importNotes = before.importNotes;
+    render();
+  }
+
   // The actions a cell shows: one in the single-action views, every action in the all-actions grid.
   const cellActions = (col) => (allMode() ? state.data.actions.map((a) => a.name) : [col.action]);
 
@@ -313,10 +349,21 @@
         .join("");
       return `<span class="pm-rowctl">${all}<span class="pm-chips">${letters}</span></span>`;
     };
+    // An app section's cell in one column: a letter per action, lined up with the chips below, toggles that action on
+    // every row of the app for that group, user or action column. Letters no row of the app has stay empty.
+    const appCell = (label, app, col) => {
+      if (!canEdit) return `<td class="pm-td pm-app-fill"></td>`;
+      const letters = cellActions(col)
+        .map((a) => (app.rows.some((r) => enabled(r, col, a))
+          ? `<button type="button" class="pm-chip pm-head-chip pm-all-app-col" data-app="${esc(label)}" data-col="${esc(col.key)}" data-action="${esc(a)}" title="Toggle ${esc(a)} on every row of ${esc(app.name)} for ${esc(col.principalName)}">${esc(letter(a))}</button>`
+          : '<span class="pm-chip pm-off" aria-hidden="true"></span>'))
+        .join("");
+      return `<td class="pm-td pm-app-fill"><div class="pm-chips">${letters}</div></td>`;
+    };
     let html = `<table class="pm-table"><thead><tr><th scope="col" class="pm-corner">${mode === "matrix" ? "Object type" : "Object type / action"}</th>${cols.map(headerHtml).join("")}</tr></thead><tbody>`;
     for (const [label, app] of apps) {
       const collapsed = state.collapsed.has(label);
-      html += `<tr class="pm-app-row"><th scope="rowgroup" class="pm-rowhead"><div class="pm-rowline"><button type="button" class="btn btn-sm btn-ghost-secondary pm-app-toggle" data-app="${esc(label)}" aria-expanded="${!collapsed}"><i class="mdi ${collapsed ? "mdi-chevron-right" : "mdi-chevron-down"}" aria-hidden="true"></i> ${esc(app.name)}</button>${allButton("pm-all-app", `data-app="${esc(label)}"`, "Toggle every row of this app")}</div></th><td class="pm-app-fill" colspan="${cols.length}"></td></tr>`;
+      html += `<tr class="pm-app-row"><th scope="rowgroup" class="pm-rowhead"><div class="pm-rowline"><button type="button" class="btn btn-sm btn-ghost-secondary pm-app-toggle" data-app="${esc(label)}" aria-expanded="${!collapsed}"><i class="mdi ${collapsed ? "mdi-chevron-right" : "mdi-chevron-down"}" aria-hidden="true"></i> ${esc(app.name)}</button>${allButton("pm-all-app", `data-app="${esc(label)}"`, "Toggle every row of this app")}</div></th>${cols.map((c) => appCell(label, app, c)).join("")}</tr>`;
       if (collapsed) continue;
       for (const row of app.rows) {
         const link = urls.whoCan.replace("__ot__", encodeURIComponent(row.object_type));
@@ -361,8 +408,12 @@
     const bar = $(".pm-bar");
     if (!bar) return;
     const n = state.staged.size + state.edits.size;
-    bar.hidden = n === 0;
+    // Kept up after Discard while it can still be reverted.
+    bar.hidden = n === 0 && !state.history.length;
     $(".pm-count", bar).textContent = `${n} change${n === 1 ? "" : "s"} staged`;
+    $(".pm-undo", bar).disabled = !state.history.length;
+    $(".pm-discard", bar).disabled = n === 0;
+    $(".pm-review", bar).disabled = n === 0;
     if (mode === "matrix") renderTabs();
   }
 
@@ -483,10 +534,12 @@
       if (json(constraints) !== json(p.constrained ? p.constraints : null)) edit.constraints = constraints;
       pending.push([editKey(col, p), edit]);
     }
-    for (const [key, edit] of pending) {
-      if (Object.keys(edit).length > 2) state.edits.set(key, edit);
-      else state.edits.delete(key);
-    }
+    change(() => {
+      for (const [key, edit] of pending) {
+        if (Object.keys(edit).length > 2) state.edits.set(key, edit);
+        else state.edits.delete(key);
+      }
+    });
     dialog.close();
     updateBar();
   }
@@ -600,11 +653,13 @@
       message(`Import failed: ${errorText(error)}`, "danger");
       return;
     }
-    for (const c of result.changes) {
-      const key = `${c.principal.type}:${c.principal.id}|${c.object_type}|${c.action}`;
-      state.staged.set(key, { principal: c.principal, object_type: c.object_type, action: c.action, granted: c.granted });
-    }
-    state.importNotes = result.errors.length || result.warnings.length ? result : null;
+    change(() => {
+      for (const c of result.changes) {
+        const key = `${c.principal.type}:${c.principal.id}|${c.object_type}|${c.action}`;
+        state.staged.set(key, { principal: c.principal, object_type: c.object_type, action: c.action, granted: c.granted });
+      }
+      state.importNotes = result.errors.length || result.warnings.length ? result : null;
+    });
     render();
     if (state.staged.size || state.edits.size) {
       message(`Imported ${file.name}: ${result.changes.length} cell change${result.changes.length === 1 ? "" : "s"} staged.`);
@@ -638,6 +693,7 @@
       state.staged.clear();
       state.edits.clear();
       state.importNotes = null;
+      state.history = [];
       dialog.close();
       message(`Applied: ${result.written.length} permission${result.written.length === 1 ? "" : "s"} written.`, "success");
       await load();
@@ -665,7 +721,9 @@
       .filter(([row, col, a]) => enabled(row, col, a));
     if (!targets.length) return;
     const allOn = targets.every(([row, col, a]) => effective(col, row.object_type, a));
-    for (const [row, col, a] of targets) setCell(col, row.object_type, !allOn, a);
+    change(() => {
+      for (const [row, col, a] of targets) setCell(col, row.object_type, !allOn, a);
+    });
     render();
   }
 
@@ -676,7 +734,7 @@
       const col = columnByKey(target.dataset.col);
       const ot = target.dataset.ot;
       const action = target.dataset.action || col.action;
-      setCell(col, ot, !effective(col, ot, action), action);
+      change(() => setCell(col, ot, !effective(col, ot, action), action));
       refreshCell(col, ot);
       return;
     }
@@ -703,15 +761,22 @@
       bulk(cols.map((c) => [row, c]), target.dataset.action);
     } else if (target.matches(".pm-all-app")) {
       bulk(rows.filter((r) => r.app_label === target.dataset.app).flatMap((r) => cols.map((c) => [r, c])), target.dataset.action);
+    } else if (target.matches(".pm-all-app-col")) {
+      const col = columnByKey(target.dataset.col);
+      bulk(rows.filter((r) => r.app_label === target.dataset.app).map((r) => [r, col]), target.dataset.action);
     } else if (target.matches(".pm-gear")) {
       panelFor(columnByKey(target.dataset.col));
     } else if (target.matches(".pm-panel-stage")) {
       stagePanel();
     } else if (target.matches(".pm-discard")) {
-      state.staged.clear();
-      state.edits.clear();
-      state.importNotes = null;
+      change(() => {
+        state.staged = new Map();
+        state.edits = new Map();
+        state.importNotes = null;
+      });
       render();
+    } else if (target.matches(".pm-undo")) {
+      revertLast();
     } else if (target.matches(".pm-review")) {
       review();
     } else if (target.matches(".pm-apply")) {
@@ -720,6 +785,7 @@
       state.staged.clear();
       state.edits.clear();
       state.importNotes = null;
+      state.history = [];
       $(".pm-review-dialog").close();
       load();
     } else if (target.matches(".pm-pick")) {
@@ -777,6 +843,16 @@
       if (file) importFile(file);
     });
   }
+
+  // Ctrl+Z (Cmd+Z) reverts the last change, except while typing or with a dialog open.
+  document.addEventListener("keydown", (event) => {
+    if (!canEdit || event.key.toLowerCase() !== "z" || !(event.ctrlKey || event.metaKey) || event.shiftKey || event.altKey) return;
+    const typing = event.target instanceof Element && event.target.closest("input, textarea, select, [contenteditable]");
+    if (typing || $("dialog[open]")) return;
+    if (!state.history.length) return;
+    event.preventDefault();
+    revertLast();
+  });
 
   window.addEventListener("beforeunload", (event) => {
     if (state.staged.size || state.edits.size) {

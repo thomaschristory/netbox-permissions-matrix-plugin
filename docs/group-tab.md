@@ -14,7 +14,8 @@ Use it to answer "what can this group do?" in one screen, or to review a group b
 ## Changing cells
 
 With the right to change permissions, cells toggle and stage exactly as on the main page, and **Review changes** shows
-the same plan. Rows and actions have **all** toggles. Custom actions are only enabled on the rows of models that
+the same plan. Rows and actions have **all** toggles, and each app section has the letter of every action: it
+toggles that action on every row of the app. **Revert last** takes back the last change. Custom actions are only enabled on the rows of models that
 register them.
 
 The gear next to each action opens the [gear panel](matrix.md#the-gear-panel) with the group's permissions that grant

@@ -65,6 +65,9 @@
   {% if can_edit %}
     <div class="pm-bar" hidden>
       <span class="pm-count"></span>
+      <button type="button" class="btn btn-outline-secondary pm-undo" title="{% trans 'Undo the last change: a cell, a toggle, the gear panel, an import or Discard (Ctrl+Z)' %}">
+        <i class="mdi mdi-undo" aria-hidden="true"></i> {% trans "Revert last" %}
+      </button>
       <button type="button" class="btn btn-outline-secondary pm-discard">{% trans "Discard" %}</button>
       <button type="button" class="btn btn-primary pm-review">{% trans "Review changes" %}</button>
     </div>

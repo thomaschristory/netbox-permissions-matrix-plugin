@@ -5,6 +5,15 @@ versioning: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- App sections have letter toggles in each column: one gives or takes an action on every row of the app for that
+  group or user only, for example every Core right for NOC. On the group tab and the single-action tabs, each column
+  has the letter of its action.
+- **Revert last** in the staged-changes bar, and Ctrl+Z (Cmd+Z), takes back the last change: a cell, a toggle, the
+  gear panel, an import or a Discard, one step at a time.
+- The staged-changes bar flashes briefly with each change.
+
 ## [0.3.0] - 2026-10-20
 
 ### Added
