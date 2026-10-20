@@ -145,9 +145,12 @@ def check_name_template(template) -> None:
             raise ValueError(f"{prefix}: positional placeholder {{{field}}} is not supported; use {known}")
         if root not in NAME_PLACEHOLDERS:
             raise ValueError(f"{prefix}: unknown placeholder {{{root}}}; use {known}")
+        if field != root:
+            # Whether {principal[2]} works depends on the name, so it would still fail for some reviews.
+            raise ValueError(f"{prefix}: {{{field}}} is not supported; use {known}")
     try:
         _format_name(template, "noc", "v")
-    except (AttributeError, IndexError, KeyError, TypeError, ValueError) as e:
+    except (KeyError, TypeError, ValueError) as e:
         raise ValueError(f"{prefix}: {e}") from None
 
 

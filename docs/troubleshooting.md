@@ -17,7 +17,8 @@ plugin. The page asks for them by a hash of their contents, so browsers fetch ne
 ## NetBox does not start: "PLUGINS_CONFIG new_permission_name ..."
 
 The `new_permission_name` setting cannot name a permission. The error says why, for example
-`unknown placeholder {team}`. Only `{principal}`, `{actions}` and `{action}` are known. Write a literal brace as
+`unknown placeholder {team}`. Only `{principal}`, `{actions}` and `{action}` are known, used as they are: `{principal[0]}` or
+`{principal.upper}` is refused. Write a literal brace as
 `{{` or `}}`. Fix the setting and start NetBox again; see [Configuration](configuration.md).
 
 ## "The permissions matrix needs view access to all permissions"
