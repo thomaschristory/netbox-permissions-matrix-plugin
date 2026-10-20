@@ -5,6 +5,8 @@ versioning: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-10-20
+
 ### Fixed
 
 - The who-can page shows constraints as JSON (`{"site__slug":"paris"}`), like the matrix and the review, instead of
@@ -101,7 +103,8 @@ versioning: [SemVer](https://semver.org/).
   group tab, export and import, permissions, REST API, limitations, troubleshooting and development.
 - Project scaffold: plugin configuration, settings, CI, release and documentation workflows, development stack.
 
-[Unreleased]: https://github.com/thomaschristory/netbox-permissions-matrix-plugin/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/thomaschristory/netbox-permissions-matrix-plugin/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/thomaschristory/netbox-permissions-matrix-plugin/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/thomaschristory/netbox-permissions-matrix-plugin/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/thomaschristory/netbox-permissions-matrix-plugin/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/thomaschristory/netbox-permissions-matrix-plugin/compare/v0.1.0...v0.2.0
