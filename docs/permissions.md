@@ -14,6 +14,9 @@ the classic Permissions pages.
 The matrix shows every permission in NetBox, so the plugin refuses users whose `view` permission on permissions is
 limited by constraints: showing them a partial matrix would also make its changes wrong.
 
+The plugin does not name groups and users you cannot view. Where the page must mention one, for example
+in the groups and users a permission is assigned to, it says "a group you cannot view" or "a user you cannot view".
+
 ## Changing permissions
 
 | Needed | For |

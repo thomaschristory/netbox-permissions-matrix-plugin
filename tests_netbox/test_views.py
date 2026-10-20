@@ -8,6 +8,7 @@ from django.urls import reverse
 from utilities.testing import TestCase
 
 from netbox_permissions_matrix_plugin import views
+from netbox_permissions_matrix_plugin.core.model import HIDDEN_GROUP
 
 from .fixtures import groups, make_perm
 
@@ -142,6 +143,46 @@ class WhoCanPageTest(TestCase):
         self.assertEqual(list(ctx["superusers"]), [])
         self.assertEqual(ctx["effective"], [])
         self.assertEqual([p["name"] for p in ctx["principals"]], ["NOC", "Ops"])
+
+    def test_hidden_groups_are_not_named(self):
+        from users.models import ObjectPermission
+
+        # The viewer may see NOC but not Ops: bob gets access only through Ops, alice through both.
+        ObjectPermission.objects.filter(name="users.view_group").update(constraints={"name": "NOC"})
+        self.alice.groups.add(self.ops)
+        response = self.get()
+        ctx = response.context
+        self.assertEqual([p["name"] for p in ctx["principals"]], ["NOC", "dave"])
+        effective = {row["username"]: row for row in ctx["effective"]}
+        self.assertEqual(set(effective), {"alice", "bob", "dave"})
+        self.assertEqual(effective["alice"]["actions"]["view"]["sources"], ["NOC", HIDDEN_GROUP])
+        self.assertEqual(effective["bob"]["actions"]["view"]["sources"], [HIDDEN_GROUP])
+        self.assertEqual(effective["bob"]["actions"]["view"]["state"], "constrained")
+        self.assertTrue(ctx["hidden_groups"])
+        self.assertFalse(ctx["hidden_users"])
+        html = response.content.decode()
+        self.assertNotIn(">Ops<", html)
+        self.assertNotIn("Ops,", html)
+        self.assertIn("Some groups with permissions are not listed", html)
+        self.assertIn("Some access comes through groups you cannot view", html)
+
+    def test_nothing_hidden_says_nothing(self):
+        response = self.get()
+        self.assertFalse(response.context["hidden_groups"])
+        self.assertFalse(response.context["hidden_users"])
+        self.assertNotIn("pm-who-hidden", response.content.decode())
+
+    def test_hidden_users_are_mentioned(self):
+        from users.models import ObjectPermission
+
+        ObjectPermission.objects.filter(name="users.view_user").update(constraints={"username": "alice"})
+        response = self.get()
+        ctx = response.context
+        self.assertEqual([row["username"] for row in ctx["effective"]], ["alice"])
+        self.assertEqual([p["name"] for p in ctx["principals"]], ["NOC", "Ops"])
+        self.assertTrue(ctx["hidden_users"])
+        self.assertFalse(ctx["hidden_groups"])
+        self.assertIn("Users you cannot view are left out", response.content.decode())
 
 
 class GroupTabTest(TestCase):

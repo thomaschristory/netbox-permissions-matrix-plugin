@@ -72,8 +72,9 @@ Each chip, or box on a single-action tab, shows one of these states:
 
 Hover a chip or box to see every permission that covers it, with its constraints.
 
-In a user column, a small dot marks access the user also has through a group; the tooltip names the group. The dot
-is only information: the user column changes the user's own permissions, never the group's.
+In a user column, a small dot marks access the user also has through a group; the tooltip names the group. A group
+you cannot view is not named: the tooltip says "a group you cannot view" instead. The dot is only information: the
+user column changes the user's own permissions, never the group's.
 
 ## Changing cells
 

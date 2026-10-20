@@ -60,6 +60,18 @@
     {% else %}
       <div class="card-body text-secondary">{% trans "No group or user has a permission on this object type." %}</div>
     {% endif %}
+    {% if hidden_groups or hidden_users %}
+      <div class="card-footer text-secondary small pm-who-hidden">
+        <i class="mdi mdi-eye-off-outline" aria-hidden="true"></i>
+        {% if hidden_groups and hidden_users %}
+          {% trans "Some groups and users with permissions are not listed: you cannot view them." %}
+        {% elif hidden_groups %}
+          {% trans "Some groups with permissions are not listed: you cannot view them." %}
+        {% else %}
+          {% trans "Some users with permissions are not listed: you cannot view them." %}
+        {% endif %}
+      </div>
+    {% endif %}
   </div>
 
   <div class="card">
@@ -69,6 +81,15 @@
         Every active user who can do something with this object type, directly or through a group.
         Constrained access applies only to the objects matching the constraints.
       {% endblocktrans %}
+      {% if hidden_groups %}
+        {% blocktrans trimmed %}
+          Some access comes through groups you cannot view. It is counted here, with "a group you cannot view" as
+          the source.
+        {% endblocktrans %}
+      {% endif %}
+      {% if hidden_users %}
+        {% trans "Users you cannot view are left out, so this list may be incomplete." %}
+      {% endif %}
     </div>
     {% if effective %}
       <div class="table-responsive">

@@ -4,6 +4,8 @@ from django.urls import reverse
 from users.models import ObjectPermission
 from utilities.testing import TestCase
 
+from netbox_permissions_matrix_plugin.core.model import HIDDEN_GROUP
+
 from .fixtures import groups, make_perm, perm_state, user
 
 MATRIX = "plugins-api:netbox_permissions_matrix_plugin-api:matrix"
@@ -82,6 +84,31 @@ class MatrixReadTest(APITestBase):
         self.assertEqual(cells["dcim.rack"]["state"], "granted")
         self.assertEqual(cells["dcim.device"]["state"], "none")
         self.assertEqual(cells["dcim.device"]["inherited"], {"state": "granted", "groups": ["NOC"]})
+
+    def test_hidden_groups_are_not_named(self):
+        # The viewer may see NOC but not Ops. alice is in both; NOC-RW is shared by both.
+        self.add_permissions(*VIEW)
+        ObjectPermission.objects.filter(name="users.view_group").update(constraints={"name": "NOC"})
+        self.alice.groups.add(self.ops)
+        make_perm("ops racks", ["view"], ["dcim.rack"], groups=[self.ops])
+        make_perm("alice direct", ["view"], ["dcim.site"], users=[self.alice])
+        for action in ("view", "*"):
+            data = self.client.get(reverse(MATRIX), {"action": action, "include_users": "true"}).json()
+            self.assertEqual([c["name"] for c in data["columns"]], ["NOC", "alice"])
+            cells = data["cells"][f"user:{self.alice.pk}"]
+            device, rack = cells["dcim.device"], cells["dcim.rack"]
+            if action == "*":
+                device, rack = device["view"], rack["view"]
+            self.assertEqual(device["inherited"], {"state": "granted", "groups": ["NOC", HIDDEN_GROUP]})
+            self.assertEqual(rack["inherited"], {"state": "granted", "groups": [HIDDEN_GROUP]})
+            self.assertNotIn('"Ops"', json.dumps(data))
+        principal = reverse("plugins-api:netbox_permissions_matrix_plugin-api:principal")
+        data = self.client.get(principal, {"type": "user", "id": self.alice.pk}).json()
+        self.assertEqual(data["cells"]["dcim.rack"]["view"]["inherited"]["groups"], [HIDDEN_GROUP])
+        self.assertNotIn('"Ops"', json.dumps(data))
+        data = self.client.get(principal, {"type": "group", "id": self.noc.pk}).json()
+        names = [p["name"] for p in data["cells"]["dcim.device"]["view"]["perms"][0]["principals"]]
+        self.assertEqual(sorted(names), sorted(["NOC", HIDDEN_GROUP]))
 
     def test_group_filter(self):
         self.add_permissions(*VIEW)
@@ -242,6 +269,19 @@ class PlanApplyTest(APITestBase):
         response = self.plan([], [edit])
         self.assertEqual(response.status_code, 400)
         self.assertIn("cannot see", str(response.json()))
+
+    def test_plan_does_not_name_hidden_groups(self):
+        ObjectPermission.objects.filter(name="users.view_group").update(constraints={"name": "NOC"})
+        response = self.plan([self.change(self.noc, "dcim.site", "view", False)])
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertNotIn('"Ops"', json.dumps(data))
+        update = next(op for op in data["operations"] if op["id"] == self.shared.pk)
+        self.assertIn(HIDDEN_GROUP, [p["name"] for p in update["before"]["principals"]])
+        # The token is the same as for a viewer who can see every group, so apply still matches it.
+        ObjectPermission.objects.filter(name="users.view_group").update(constraints=None)
+        again = self.plan([self.change(self.noc, "dcim.site", "view", False)]).json()
+        self.assertEqual(again["token"], data["token"])
 
     def test_edit_of_a_permission_of_someone_else_is_left_out(self):
         other = make_perm("ops_v", ["view"], ["dcim.site"], groups=[self.ops])
