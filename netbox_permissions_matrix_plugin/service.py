@@ -14,7 +14,7 @@ from utilities.permissions import qs_filter_from_constraints
 
 from . import loader, matrix
 from .conf import get_setting
-from .core.model import GROUP, USER, Plan, PrincipalRef, Snapshot
+from .core.model import GROUP, HIDDEN_GROUP, USER, Plan, PrincipalRef, Snapshot
 from .core.planner import plan as make_plan
 from .core.token import version_token
 
@@ -53,6 +53,11 @@ def visible_users(user) -> set[int]:
     return set(User.objects.restrict(user, "view").values_list("pk", flat=True))
 
 
+def for_viewer(snap: Snapshot, groups: set[int], users: set[int]) -> Snapshot:
+    """The snapshot as one viewer may see it: only the groups and users they may view keep their names."""
+    return snap.hiding({r for r in snap.principals if r.id in (groups if r.kind == GROUP else users)})
+
+
 @dataclass
 class MatrixQuery:
     action: str = "view"
@@ -81,7 +86,7 @@ def columns_for(snap: Snapshot, user, query: MatrixQuery) -> list[PrincipalRef]:
 
 def matrix_payload(user, query: MatrixQuery) -> dict:
     check_view(user)
-    snap = loader.load_snapshot(user_ids=query.user_ids)
+    snap = for_viewer(loader.load_snapshot(user_ids=query.user_ids), visible_groups(user), visible_users(user))
     row_list = loader.rows(get_setting("hidden_apps"))
     if query.app_labels:
         row_list = [r for r in row_list if r.app_label in query.app_labels]
@@ -127,7 +132,7 @@ def validate_constraints(result: Plan) -> None:
 
 
 def plan_for(user, changes, edits) -> tuple[Snapshot, Plan, str]:
-    """Plan a change set for this user. Returns the snapshot, the plan and the version token."""
+    """Plan a change set for this user. Returns the snapshot as the user may see it, the plan and the version token."""
     check_edit(user)
     refs = {c.principal for c in changes} | {e.principal for e in edits}
     snap = loader.load_snapshot(user_ids=[r.id for r in refs if r.kind == USER])
@@ -150,7 +155,8 @@ def plan_for(user, changes, edits) -> tuple[Snapshot, Plan, str]:
             raise PlanError({"edits": [f"{target.name} is also assigned to groups or users you cannot see."]})
     result = make_plan(snap, changes, edits, name_template=get_setting("new_permission_name"))
     validate_constraints(result)
-    return snap, result, version_token(snap, refs)
+    # The token is made from the real names; the plan is shown without the names the user may not see.
+    return for_viewer(snap, groups, users), result, version_token(snap, refs)
 
 
 def principal_json(snap: Snapshot, ref: PrincipalRef) -> dict:
@@ -186,12 +192,18 @@ def principal_payload(user, ref: PrincipalRef) -> dict:
     if ref.id not in visible:
         raise Http404(f"No such {ref.kind}")
     snap = loader.load_snapshot(user_ids=[ref.id] if ref.kind == USER else ())
+    snap = for_viewer(snap, visible_groups(user), visible_users(user))
     row_list = loader.rows(get_setting("hidden_apps"))
     return matrix.build_principal(snap, row_list, ref, loader.action_tabs(snap, row_list), can_edit(user))
 
 
 def who_can(user, label: str) -> dict:
-    """Everyone holding any action on one object type, directly and through groups."""
+    """Everyone holding any action on one object type, directly and through groups.
+
+    Groups and users the viewer may not view have no row and are not named. Effective access still counts the groups:
+    a visible user who gets access only through a hidden group is listed, with "a group you cannot view" as the
+    source. hidden_groups and hidden_users say when the first table left someone out, hidden_effective and
+    hidden_superusers when the effective access or the superusers did, so the page can say so."""
     from core.models import ObjectType
 
     from .core.cells import covering, state_of
@@ -200,17 +212,15 @@ def who_can(user, label: str) -> dict:
     row = next((r for r in loader.rows() if r.object_type == label), None)
     if row is None:
         raise Http404(f"{label} is not an object type permissions can be assigned to")
-    snap = loader.load_snapshot()
+    groups, users = visible_groups(user), visible_users(user)
+    snap = for_viewer(loader.load_snapshot(), groups, users)
     tabs = loader.action_tabs(snap, [row])
     custom = [t for t in tabs if not t.custom or t.name in row.custom_actions]
     used = {a for p in snap.perms.values() if label in p.object_types for a in p.actions}
     actions = [t for t in custom if not t.freeform or t.name in used]
 
-    groups, users = visible_groups(user), visible_users(user)
-    principals = []
+    principals, hidden = [], set()
     for ref in sorted(snap.principals, key=lambda r: (r.kind != GROUP, snap.name_of(r).lower())):
-        if ref.id not in (groups if ref.kind == GROUP else users):
-            continue
         cells = {}
         for tab in actions:
             perms = covering(snap, ref, label, tab.name)
@@ -219,44 +229,64 @@ def who_can(user, label: str) -> dict:
                     "state": str(state_of(perms)),
                     "perms": [matrix.perm_summary(p, snap) for p in perms],
                 }
-        if cells:
-            principals.append({"ref": ref, "type": ref.kind, "id": ref.id, "name": snap.name_of(ref), "cells": cells})
+        if not cells:
+            continue
+        if snap.is_hidden(ref):
+            hidden.add(ref)
+            continue
+        principals.append({"ref": ref, "type": ref.kind, "id": ref.id, "name": snap.name_of(ref), "cells": cells})
 
-    # Effective access: members of the groups above plus users with direct grants, active ones only.
-    group_ids = [p["id"] for p in principals if p["type"] == GROUP]
-    direct_ids = [p["id"] for p in principals if p["type"] == USER]
+    # Effective access: members of every group with access, hidden or not, plus users with direct grants, active
+    # ones only.
+    group_ids = [p["id"] for p in principals if p["type"] == GROUP] + [r.id for r in hidden if r.kind == GROUP]
+    direct_ids = [p["id"] for p in principals if p["type"] == USER] + [r.id for r in hidden if r.kind == USER]
     candidates = User.objects.filter(is_active=True).filter(Q(groups__in=group_ids) | Q(pk__in=direct_ids))
     candidates = candidates.distinct().prefetch_related("groups").order_by("username")
-    effective = []
+    effective, hidden_effective = [], False
     for member in candidates:
         if member.pk not in users:
+            hidden_effective = True
             continue
-        sources = [(PrincipalRef(USER, member.pk), "direct")]
-        sources += [(PrincipalRef(GROUP, g.pk), g.name) for g in member.groups.all()]
+        sources = [PrincipalRef(USER, member.pk)]
+        sources += sorted(
+            (PrincipalRef(GROUP, g.pk) for g in member.groups.all()), key=lambda r: snap.name_of(r).lower()
+        )
         row_actions = {}
         for tab in actions:
-            found, names = [], []
-            for ref, source in sources:
+            found, names, through_hidden = [], [], False
+            for ref in sources:
                 perms = covering(snap, ref, label, tab.name)
-                if perms:
-                    found += perms
-                    names.append(source)
+                if not perms:
+                    continue
+                found += perms
+                if ref.kind == USER:
+                    names.append("direct")
+                elif snap.is_hidden(ref):
+                    through_hidden = True
+                else:
+                    names.append(snap.name_of(ref))
             if found:
                 row_actions[tab.name] = {
                     "state": str(state_of(found)),
-                    "sources": names,
+                    # Like the matrix's markers: hidden groups once, after the others, whatever their number.
+                    "sources": names + ([HIDDEN_GROUP] if through_hidden else []),
                     "constraints": [p.constraints for p in found if p.enabled and p.constrained],
                 }
         if row_actions:
             effective.append({"user": member, "username": member.username, "actions": row_actions})
 
+    superusers = User.objects.filter(is_superuser=True, is_active=True)
     return {
         "row": row,
         "object_type": ObjectType.objects.get(app_label=row.app_label, model=label.split(".")[1]),
         "actions": actions,
         "principals": principals,
         "effective": effective,
-        "superusers": User.objects.filter(pk__in=users, is_superuser=True, is_active=True).order_by("username"),
+        "hidden_groups": any(r.kind == GROUP for r in hidden),
+        "hidden_users": any(r.kind == USER for r in hidden),
+        "hidden_effective": hidden_effective,
+        "superusers": superusers.filter(pk__in=users).order_by("username"),
+        "hidden_superusers": superusers.exclude(pk__in=users).exists(),
     }
 
 

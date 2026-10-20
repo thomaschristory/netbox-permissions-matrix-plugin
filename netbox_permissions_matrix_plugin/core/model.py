@@ -9,6 +9,10 @@ GROUP = "group"
 USER = "user"
 PrincipalKind = Literal["group", "user"]
 
+# What a group or user the viewer may not view is called instead of its name.
+HIDDEN_GROUP = "a group you cannot view"
+HIDDEN_USER = "a user you cannot view"
+
 
 class _Unset:
     def __repr__(self):
@@ -45,6 +49,7 @@ class PrincipalRef:
 class Principal:
     ref: PrincipalRef
     name: str
+    hidden: bool = False  # the viewer may not view it: name is HIDDEN_GROUP or HIDDEN_USER
 
 
 def is_constrained(constraints) -> bool:
@@ -117,6 +122,20 @@ class Snapshot:
     def name_of(self, ref: PrincipalRef) -> str:
         principal = self.principals.get(ref)
         return principal.name if principal else ref.key
+
+    def is_hidden(self, ref: PrincipalRef) -> bool:
+        principal = self.principals.get(ref)
+        return principal is not None and principal.hidden
+
+    def hiding(self, visible: set[PrincipalRef]) -> Snapshot:
+        """A copy for one viewer: the groups and users outside visible keep their permissions but not their names."""
+        principals = {
+            ref: p
+            if ref in visible
+            else Principal(ref, HIDDEN_GROUP if ref.kind == GROUP else HIDDEN_USER, hidden=True)
+            for ref, p in self.principals.items()
+        }
+        return Snapshot(self.perms, principals, self.memberships)
 
 
 @dataclass(frozen=True)

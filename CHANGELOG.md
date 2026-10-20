@@ -13,6 +13,10 @@ versioning: [SemVer](https://semver.org/).
 
 ### Fixed
 
+- Groups the viewer cannot view are no longer named: the matrix's group markers, the who-can sources and the
+  groups and users a permission is assigned to say "a group you cannot view" (or "a user you cannot view") instead.
+- The who-can page counts access through groups the viewer cannot view, and says when it leaves out groups or users
+  the viewer cannot view.
 - Browsers no longer keep an old `matrix.js` or `matrix.css` after the files change between releases: their URLs
   carry a hash of the contents instead of the plugin version.
 - A `new_permission_name` with an unknown placeholder, such as `{team}`, no longer makes every review that creates a
