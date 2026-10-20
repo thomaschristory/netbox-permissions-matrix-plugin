@@ -65,8 +65,8 @@ A click toggles a chip between granted and not granted, as for any chip. A disab
 - **The second click revokes it completely.** The chip is staged as not granted, which removes the cell from every
   permission that covers it, the disabled one included.
 
-There is no click that puts a disabled chip back as it was. To drop the staged change, click **Discard**, which
-forgets every staged change.
+No third click puts a disabled chip back as it was. To drop the staged change, click **Revert last** right after
+(or press Ctrl+Z), or **Discard**, which forgets every staged change.
 
 ## Revoking a disabled cell
 

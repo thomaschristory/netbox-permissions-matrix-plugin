@@ -267,6 +267,29 @@ button.pm-cell:focus-visible {
   display: none;
 }
 
+/* The bar pulses once after each change. */
+.pm-bar.pm-flash {
+  animation: pm-flash 0.9s ease-out;
+}
+
+@keyframes pm-flash {
+  0% {
+    border-color: var(--pm-staged);
+    background: color-mix(in srgb, var(--pm-staged) 12%, var(--pm-surface));
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--pm-staged) 50%, transparent), 0 -0.25rem 1rem rgb(0 0 0 / 10%);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0.6rem transparent, 0 -0.25rem 1rem rgb(0 0 0 / 10%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pm-bar.pm-flash {
+    animation: none;
+  }
+}
+
 .pm-count {
   margin-right: auto;
   font-weight: 600;
