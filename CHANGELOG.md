@@ -5,6 +5,11 @@ versioning: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- The who-can page shows constraints as JSON (`{"site__slug":"paris"}`), like the matrix and the review, instead of
+  as Python dictionaries, in the effective access and in the cell tooltips.
+
 ## [0.4.0] - 2026-10-20
 
 ### Added
