@@ -94,7 +94,8 @@ class MatrixReadTest(APITestBase):
         make_perm("alice direct", ["view"], ["dcim.site"], users=[self.alice])
         for action in ("view", "*"):
             data = self.client.get(reverse(MATRIX), {"action": action, "include_users": "true"}).json()
-            self.assertEqual([c["name"] for c in data["columns"]], ["NOC", "alice"])
+            # The test user has direct permissions too, so it has a column.
+            self.assertEqual([c["name"] for c in data["columns"]], ["NOC", "alice", self.user.username])
             cells = data["cells"][f"user:{self.alice.pk}"]
             device, rack = cells["dcim.device"], cells["dcim.rack"]
             if action == "*":
