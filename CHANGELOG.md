@@ -13,6 +13,8 @@ versioning: [SemVer](https://semver.org/).
 
 ### Fixed
 
+- A permission created in the same change set that deletes another can take the deleted one's name. It no longer
+  gets a number (`noc_v 2`) because the name was still taken while the plan was worked out.
 - Groups the viewer cannot view are no longer named: the matrix's group markers, the who-can sources and the
   groups and users a permission is assigned to say "a group you cannot view" (or "a user you cannot view") instead.
 - The who-can page counts access through groups the viewer cannot view, and says when it leaves out groups or users
