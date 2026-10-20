@@ -67,7 +67,7 @@ URL `/plugins/permissions-matrix/`. Menu entry "Permissions Matrix" in Admin > A
 ### Layout
 
 ```
-[All actions] [View] [Add] [Change] [Delete] [custom actions...]   [search] [app filter] [x] users  [columns]
+[All actions] [View] [Add] [Change] [Delete] [custom actions...]   [search] [app filter] [groups] [users]
 
                             |   NOC ⚙       |   Ops ⚙       |
                             | [V A C D R S] | [V A C D R S] |
@@ -91,9 +91,10 @@ URL `/plugins/permissions-matrix/`. Menu entry "Permissions Matrix" in Admin > A
 - **Rows** are the object types that NetBox allows in a permission (the same `OBJECTPERMISSION_OBJECT_TYPES` filter
   the classic form uses), grouped by app. App sections can be collapsed. A search box filters rows by name; an app
   filter limits the apps shown; a "Only rows with grants" switch hides empty rows.
-- **Columns** are groups, sorted by name. The "users" switch adds a column for every user that has at least one
-  permission assigned directly. Users who get access only through a group do not get a column; the "Who can" page
-  shows them. A column picker limits the columns shown; the choice is kept in the URL so it can be bookmarked.
+- **Columns** are groups, then users, sorted by name. The "groups" picker limits the groups shown, all by default.
+  The "users" picker adds columns for users that have at least one permission assigned directly, none by default.
+  Users who get access only through a group do not get a column; the "Who can" page shows them. Both choices are kept
+  in the URL so they can be bookmarked.
 - A user column shows the user's **direct** permissions. Access the user also gets through a group is shown as a
   small "inherited" marker in the cell, with the group named in the tooltip. The marker is never editable from the
   user column: changing it would change the group. Ticking such a cell adds a direct grant for the user.

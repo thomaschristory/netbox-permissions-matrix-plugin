@@ -63,6 +63,7 @@ class ExportView(MatrixAccessMixin, View):
         params = request.GET
         query = service.MatrixQuery(
             include_users=params.get("users") == "1",
+            include_groups=params.get("groups") != "0",
             group_ids=_ints(params.getlist("group_id")),
             user_ids=_ints(params.getlist("user_id")),
             app_labels=tuple(a for a in params.getlist("app") if a),

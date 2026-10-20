@@ -48,7 +48,7 @@ permission setups do not fit in a grid of chips. This page lists what to keep in
 
 ## Scale
 
-- Every group is a column. With hundreds of groups, use **Columns** to pick the ones you need; the choice is kept in
+- Every group is a column. With hundreds of groups, use **Groups** to pick the ones you need; the choice is kept in
   the URL so it can be bookmarked.
 - The matrix loads every permission at once. That is a few queries whatever the size, but a very large number of
   permissions makes the page slower to draw.

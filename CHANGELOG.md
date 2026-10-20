@@ -5,6 +5,12 @@ versioning: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **Groups** and **Users** buttons replace the Columns button and the Users switch: each picks the columns of its
+  kind. All groups and no users are shown at first.
+- Export with `user_id` alone keeps every group. `groups=0` leaves groups out.
+
 ## [0.2.0] - 2026-10-19
 
 ### Added

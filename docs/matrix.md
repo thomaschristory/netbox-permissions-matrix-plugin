@@ -5,7 +5,7 @@ Open **Admin > Authentication > Permissions Matrix**.
 ![The matrix with every action, only rows with grants](img/matrix.png)
 
 ```
-[search] [apps] [ ] Only rows with grants  [ ] Users  [Columns]  [Export]  [Import]
+[search] [apps] [ ] Only rows with grants  [Groups] [Users]  [Export]  [Import]
 
                             |   NOC ⚙       |   Ops ⚙       |
                             | [V A C D R S] | [V A C D R S] |
@@ -49,8 +49,10 @@ Rows are the object types NetBox lets you put in a permission, grouped by app. C
 - **Apps** limits the apps shown.
 - **Only rows with grants** hides rows where no visible column has the action.
 
-Columns are groups, by name. Switch on **Users** to add a column for every user who has a permission assigned
-directly. **Columns** picks which groups and users are shown; the choice is kept in the URL.
+Columns are groups, then users, each by name. **Groups** picks which groups are shown: all of them at first.
+**Users** picks which users are shown, among those who have a permission assigned directly: none at first. Users who
+get access only through a group have no column; the [who can](who-can.md) page shows them. When not every group, or
+any user, is shown, the button counts them (`3/42`). The choice is kept in the URL, so it can be bookmarked.
 
 The header row and the object type column stay in place while you scroll.
 
