@@ -24,6 +24,8 @@ versioning: [SemVer](https://semver.org/).
   Attribute or index access, such as `{principal[2]}`, is refused the same way.
 - Apply returns a 409 asking you to reload and review again when a group or user in the plan is deleted while it is
   written, instead of a server error. Nothing is written.
+- Renaming a permission in the gear panel to a name already in use now shows a warning in the review with the name
+  that will be used instead (`NOC | view 2`). Before, the number was added without a word.
 
 ## [0.2.0] - 2026-10-19
 
