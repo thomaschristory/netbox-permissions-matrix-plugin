@@ -545,3 +545,22 @@ def test_a_name_another_kept_permission_has_is_not_released():
     ops = plan(snap, [revoke(NOC, "dcim.device", "view"), grant(NOC, "dcim.site", "view")]).operations
     assert [o.op for o in ops] == ["delete", "create"]
     assert ops[1].after.name == "noc_v 2"
+
+
+def test_a_split_emptied_in_the_same_change_set_releases_its_name():
+    # The revokes split "shared (NOC)" (change on device and rack) and "shared (NOC) 2" (add on site) off for NOC; the
+    # view grants then move device and rack to noc_vc, so the first split is dropped and its name is free.
+    snap = snapshot(
+        perm(1, "shared", ["add", "change"], ["dcim.device", "dcim.rack", "dcim.site"], NOC, OPS),
+        perm(2, "noc_vc", ["view", "change"], ["ipam.prefix"], NOC),
+    )
+    changes = [
+        revoke(NOC, "dcim.device", "add"),
+        revoke(NOC, "dcim.rack", "add"),
+        revoke(NOC, "dcim.site", "change"),
+        grant(NOC, "dcim.device", "view"),
+        grant(NOC, "dcim.rack", "view"),
+    ]
+    ops = plan(snap, changes).operations
+    assert [(o.op, o.key) for o in ops] == [("update", "1"), ("update", "2"), ("create", "new-2")]
+    assert (ops[2].after.name, ops[2].after.actions) == ("shared (NOC)", ("add",))

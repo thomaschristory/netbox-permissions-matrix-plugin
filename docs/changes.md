@@ -39,7 +39,8 @@ setting; see [Configuration](configuration.md).
    has now plus the ones you ticked.
 3. The object type leaves the simple permission it was in, and goes into the principal's simple permission for the
    new set of actions. If there is none, one is created and named as above. A number is appended if the name is
-   taken. The name of a permission the same change set deletes counts as free.
+   taken. The name of a permission the same change set deletes counts as free, as does the name of a split
+   permission the same change set empties again.
 
 So ticking **Change** on Device for NOC, when NOC has `noc_va` on Device and Site, moves Device from `noc_va` to
 `noc_vac`. Site stays in `noc_va`. Ticking view and add on several object types fills one `noc_va`.
