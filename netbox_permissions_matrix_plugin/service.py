@@ -8,11 +8,10 @@ from dataclasses import dataclass
 from django.core.exceptions import FieldError, PermissionDenied, ValidationError
 from django.db.models import Q
 from django.http import Http404
-from users.constants import CONSTRAINT_TOKEN_USER
 from users.models import Group, ObjectPermission, User
-from utilities.permissions import qs_filter_from_constraints
 
 from . import loader, matrix
+from .compat import constraint_filter
 from .conf import get_setting
 from .core.model import GROUP, HIDDEN_GROUP, USER, Plan, PrincipalRef, Snapshot
 from .core.planner import plan as make_plan
@@ -124,7 +123,7 @@ def validate_constraints(result: Plan) -> None:
             if model is None:
                 continue
             try:
-                model.objects.filter(qs_filter_from_constraints(constraints, {CONSTRAINT_TOKEN_USER: 0})).exists()
+                model.objects.filter(constraint_filter(constraints)).exists()
             except (FieldError, ValueError, TypeError) as exc:
                 errors.append(f"{after.name}: invalid filter for {label}: {exc}")
     if errors:

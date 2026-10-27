@@ -3,6 +3,7 @@ import logging
 from django.utils.translation import gettext_lazy as _
 from netbox.plugins import PluginMenuItem
 
+from .compat import admin_menu
 from .conf import get_setting
 
 LINK = "plugins:netbox_permissions_matrix_plugin:matrix"
@@ -20,12 +21,11 @@ def add_to_admin_menu(menu=None) -> bool:
     builds and caches its menus on the first request. Returns False when the menu looks different, and the caller
     falls back to the Plugins menu.
     """
-    try:
-        from netbox.navigation import MenuItem
-        from netbox.navigation.menu import ADMIN_MENU
-    except ImportError:
+    found = admin_menu()
+    if found is None:
         return False
-    menu = ADMIN_MENU if menu is None else menu
+    admin, MenuItem = found
+    menu = admin if menu is None else menu
     groups = getattr(menu, "groups", ())
     if any(getattr(item, "link", None) == LINK for group in groups for item in group.items):
         return True

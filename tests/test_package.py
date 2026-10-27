@@ -6,7 +6,7 @@ from pathlib import Path
 from netbox.plugins import PluginConfig
 
 import netbox_permissions_matrix_plugin
-from netbox_permissions_matrix_plugin import conf
+from netbox_permissions_matrix_plugin import compat, conf
 
 ROOT = Path(__file__).resolve().parent.parent
 PACKAGE = ROOT / "netbox_permissions_matrix_plugin"
@@ -58,3 +58,22 @@ def test_version_is_read_without_importing_the_package():
 
 def test_default_menu_placement_is_valid():
     assert conf.DEFAULTS["menu_placement"] in conf.MENU_PLACEMENTS
+
+
+def _version(value):
+    return tuple(int(part) for part in value.split("."))
+
+
+def test_compat_checked_against_matches_version_bounds():
+    # The release steps in docs/development.md add each tested NetBox to this line when max_version is raised.
+    match = re.search(r"^Checked against NetBox: (.+)\.$", compat.__doc__, re.MULTILINE)
+    assert match, "compat.py's docstring has no 'Checked against NetBox: ...' line"
+    checked = [_version(v) for v in match.group(1).split(", ")]
+    assert checked == sorted(set(checked))
+    min_version = _version(netbox_permissions_matrix_plugin.config.min_version)
+    max_version = _version(netbox_permissions_matrix_plugin.config.max_version)
+    assert checked[0] == min_version
+    assert all(v <= max_version for v in checked)
+    # Every minor up to max_version has been checked.
+    assert checked[-1][:2] == max_version[:2]
+    assert '"Checked against" line' in (ROOT / "docs" / "development.md").read_text()

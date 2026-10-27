@@ -345,6 +345,12 @@ found, the plugin logs a warning and falls back to the entry under "Plugins".
   `.restrict(user, "add")` and the transaction is rolled back on a miss, as NetBox's own views do.
 - The opt-in menu insertion replaces the `items` tuple of the Authentication group in `ADMIN_MENU` and finds the
   Permissions item by its link (`users:objectpermission_list`).
+- The NetBox internals the plugin needs, beyond the documented plugin API and the models, are all in `compat.py`: the
+  permission form's object type filter (`users.constants.OBJECTPERMISSION_OBJECT_TYPES`, which is not the same set as
+  `ObjectType.objects.public()`: it adds `core.managedfile`, `extras.scriptmodule` and `extras.taggeditem` and drops
+  `core.objecttype`), `registry["model_actions"]`, `qs_filter_from_constraints` with the `$user` token, the Admin
+  menu and `ConditionalLoginRequiredMixin`. `title` and the reserved actions are copies. `tests_netbox/test_compat.py`
+  checks each one against the running NetBox, so a release that moves or reshapes one fails there first.
 
 ## Settings
 
@@ -364,4 +370,4 @@ found, the plugin logs a warning and falls back to the entry under "Plugins".
   The package's `__init__` defines the plugin config unconditionally, so `tests/conftest.py` puts a stub
   `netbox.plugins` in place when NetBox is not installed.
 - `tests_netbox/`: Django tests run inside NetBox 4.7: views, API, permission enforcement, the menu insertion, the
-  group tab, apply and conflict detection.
+  group tab, apply and conflict detection, and every NetBox internal `compat.py` reads.

@@ -6,11 +6,9 @@ from collections import defaultdict
 from dataclasses import dataclass
 
 from django.apps import apps
-from netbox.registry import registry
-from users.constants import OBJECTPERMISSION_OBJECT_TYPES, RESERVED_ACTIONS
 from users.models import Group, ObjectPermission, User
-from utilities.string import title
 
+from .compat import RESERVED_ACTIONS, model_actions, permission_object_types, title
 from .core.model import GROUP, USER, Perm, Principal, PrincipalRef, Snapshot
 
 # Permissions, their object types, groups and users (prefetches), all groups, users with direct permissions or
@@ -62,17 +60,15 @@ class Row:
 
 def registered_actions() -> dict[str, frozenset[str]]:
     """Custom actions models registered (NetBox 4.6+), by "app_label.model"."""
-    return {label: frozenset(a.name for a in actions) for label, actions in registry["model_actions"].items()}
+    return {label: frozenset(actions) for label, actions in model_actions().items()}
 
 
 def rows(hidden_apps=()) -> list[Row]:
     """The object types NetBox offers in the permission form, by app label then model."""
-    from core.models import ObjectType
-
     app_names = {app.label: str(app.verbose_name) for app in apps.get_app_configs()}
     custom = registered_actions()
     result = []
-    for ot in ObjectType.objects.filter(OBJECTPERMISSION_OBJECT_TYPES).exclude(app_label__in=hidden_apps):
+    for ot in permission_object_types().exclude(app_label__in=hidden_apps):
         model = ot.model_class()
         label = ot_label(ot)
         result.append(
@@ -99,9 +95,9 @@ class ActionTab:
 def action_tabs(snap: Snapshot, row_list: list[Row]) -> list[ActionTab]:
     tabs = [ActionTab(a, a.capitalize()) for a in RESERVED_ACTIONS]
     help_texts = {}
-    for actions in registry["model_actions"].values():
-        for action in actions:
-            help_texts.setdefault(action.name, action.help_text)
+    for actions in model_actions().values():
+        for name, help_text in actions.items():
+            help_texts.setdefault(name, help_text)
     registered = sorted(set().union(*(r.custom_actions for r in row_list)) if row_list else set())
     tabs += [ActionTab(a, title(a.replace("_", " ")), custom=True, help_text=help_texts.get(a, "")) for a in registered]
     known = set(RESERVED_ACTIONS) | set(help_texts)

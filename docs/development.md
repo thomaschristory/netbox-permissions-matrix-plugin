@@ -37,8 +37,8 @@ make format        # fix what ruff can
   itself (no em dashes, every page in the navigation, internal links, configuration examples). The planner also has
   property-based tests that check, on random permission sets, that no principal other than the one changed ever gains
   or loses access.
-- `tests_netbox/` covers the loader, the REST API, the views, the menu and export and import against a real NetBox
-  and PostgreSQL.
+- `tests_netbox/` covers the loader, the REST API, the views, the menu, export and import, and the NetBox internals
+  the plugin relies on (`test_compat.py`) against a real NetBox and PostgreSQL.
 
 CI runs both on every pull request, the integration tests against the lowest supported NetBox (`min_version`), the
 latest 4.7 patch and NetBox's `feature` branch (allowed to fail, as an early warning, and run with `max_version`
@@ -51,6 +51,7 @@ lifted).
 | `netbox_permissions_matrix_plugin/core/` | Pure Python: the snapshot model, cell states, the planner, the version token, export and import. No Django imports. |
 | `loader.py` | Reads NetBox's permissions, groups and users into a snapshot, in a fixed number of queries. |
 | `service.py` | What the page, the group tab, export and import and the API share: access checks, the matrix, plans. |
+| `compat.py` | Every NetBox internal the plugin uses, and why; `tests_netbox/test_compat.py` checks them on each NetBox. |
 | `applier.py` | Writes a plan in one transaction, checking the user's permissions before and after each write. |
 | `api/` | The REST API. |
 | `views.py`, `templates/`, `static/` | The pages. `matrix.js` draws the matrix from the API, without a build step. |
@@ -80,7 +81,8 @@ Releases follow [Keep a Changelog](changelog.md) and Conventional Commits:
 1. Bump `netbox_permissions_matrix_plugin/version.py` and move the changelog's Unreleased section under the new
    version and date. If `min_version` or `max_version` changed, update the compatibility tables in `README.md` and
    `docs/index.md`. Raise `max_version` to the next minor (for example `4.8.99`) only once the `feature` integration
-   job passes on it.
+   job passes on it, including `tests_netbox/test_compat.py`, and add that version to the "Checked against" line
+   in the `compat.py` docstring.
 2. Merge, then tag `vX.Y.Z` on main and push the tag.
 3. The `release` workflow builds and publishes to PyPI with trusted publishing; the `docs` workflow publishes this
    site.
