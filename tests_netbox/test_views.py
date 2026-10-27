@@ -6,6 +6,7 @@ from unittest import mock
 from django.test import SimpleTestCase, override_settings
 from django.urls import reverse
 from utilities.testing import TestCase
+from utilities.views import ConditionalLoginRequiredMixin
 
 from netbox_permissions_matrix_plugin import views
 from netbox_permissions_matrix_plugin.core.model import HIDDEN_GROUP
@@ -27,6 +28,12 @@ class MatrixPageTest(TestCase):
         response = self.client.get(reverse(MATRIX))
         self.assertEqual(response.status_code, 302)
         self.assertIn("login", response["Location"])
+
+    @override_settings(LOGIN_REQUIRED=False)
+    def test_anonymous_without_login_required_is_refused(self):
+        # NetBox lets anonymous users through; the plugin's own check still refuses them.
+        self.client.logout()
+        self.assertEqual(self.client.get(reverse(MATRIX)).status_code, 403)
 
     def test_needs_view_permission(self):
         self.assertEqual(self.client.get(reverse(MATRIX)).status_code, 403)
@@ -240,3 +247,23 @@ class GroupTabTest(TestCase):
     def test_tab_needs_permission_view(self):
         self.add_permissions("users.view_group")
         self.assertEqual(self.client.get(self.url()).status_code, 403)
+
+
+class AccessMixinTest(SimpleTestCase):
+    def test_uses_netbox_login_check(self):
+        for view in (views.MatrixView, views.ExportView, views.WhoCanView):
+            self.assertTrue(issubclass(view, ConditionalLoginRequiredMixin), view)
+
+
+class TemplateBlocksTest(SimpleTestCase):
+    def test_head_and_javascript_blocks_keep_block_super(self):
+        # Anything NetBox adds to these blocks later must still reach the plugin's pages.
+        templates = Path(views.__file__).parent / "templates" / "netbox_permissions_matrix_plugin"
+        for path in templates.glob("*.html"):
+            source = path.read_text()
+            for block in ("head", "javascript"):
+                start = source.find(f"{{% block {block} %}}")
+                if start == -1:
+                    continue
+                body = source[start : source.index("{% endblock %}", start)]
+                self.assertIn("{{ block.super }}", body, f"{path.name}: {block}")

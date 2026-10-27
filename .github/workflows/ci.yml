@@ -66,13 +66,15 @@ jobs:
     name: integration tests on NetBox ${{ matrix.netbox }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # The plugin sets no max_version, so it also runs against NetBox's next release ("feature"). That job warns early
-    # about upcoming breakage but does not block a merge.
+    # The lowest supported NetBox (min_version), the latest patch, and NetBox's next release ("feature"). The feature
+    # job warns early about upcoming breakage but does not block a merge.
     continue-on-error: ${{ matrix.experimental }}
     strategy:
       fail-fast: false
       matrix:
         include:
+          - netbox: "v4.7.2"
+            experimental: false
           - netbox: "v4.7.3"
             experimental: false
           - netbox: "feature"
@@ -118,6 +120,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r netbox/requirements.txt
           pip install -e ./plugin
+      - name: Lift max_version
+        # max_version refuses NetBox's next minor; the feature job tests it anyway, to tell when max_version can rise.
+        if: matrix.experimental
+        run: sed -i 's/^\( *max_version = \).*/\1None/' plugin/netbox_permissions_matrix_plugin/__init__.py
       - name: Configure NetBox
         run: |
           cp netbox/netbox/netbox/configuration_testing.py netbox/netbox/netbox/configuration.py

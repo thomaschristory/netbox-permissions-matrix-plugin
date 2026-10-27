@@ -5,6 +5,15 @@ versioning: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- The plugin requires NetBox 4.7.2 or later (`min_version`): 4.7.0 and 4.7.1 wrote plaintext API tokens from
+  background bulk requests into job results. CI now tests 4.7.2 as well as the latest patch.
+- The plugin declares `max_version = "4.7.99"`, so NetBox 4.8 refuses to load it until a release tested on 4.8
+  raises the limit, instead of failing at runtime.
+- The plugin's pages use NetBox's `ConditionalLoginRequiredMixin` for the login check, and keep NetBox's own
+  `head` and `javascript` template blocks.
+
 ## [0.4.1] - 2026-10-20
 
 ### Fixed

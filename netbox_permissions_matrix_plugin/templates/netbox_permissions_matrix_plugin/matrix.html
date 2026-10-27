@@ -12,6 +12,7 @@
 {% endblock %}
 
 {% block head %}
+  {{ block.super }}
   <link rel="stylesheet" href="{% static 'netbox_permissions_matrix_plugin/matrix.css' %}?v={{ asset_version }}">
 {% endblock %}
 
@@ -28,5 +29,6 @@
 {% endblock %}
 
 {% block javascript %}
+  {{ block.super }}
   <script src="{% static 'netbox_permissions_matrix_plugin/matrix.js' %}?v={{ asset_version }}"></script>
 {% endblock %}

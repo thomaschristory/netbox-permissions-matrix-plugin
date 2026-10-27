@@ -41,8 +41,10 @@ These would make the plugin a failure even if it worked:
 
 ## Constraints
 
-- NetBox 4.7.0 or later (Django 6.1, Python 3.12 to 3.14). `min_version = "4.7.0"` and no `max_version`: the plugin
-  keeps loading on newer NetBox releases, and CI tests the supported range.
+- NetBox 4.7.2 to 4.7.x (Django 6.1, Python 3.12 to 3.14). `min_version = "4.7.2"`, since 4.7.0 and 4.7.1 wrote
+  plaintext API tokens into job results, and `max_version = "4.7.99"`, so a NetBox minor the plugin has not been tested
+  on refuses to load it. CI tests `min_version`, the latest patch and NetBox's next release; `max_version` rises once
+  that last job passes.
 - Only public NetBox and Django APIs, plus one documented exception: the menu item is inserted into NetBox's core
   Admin menu (see [Navigation](#navigation)).
 
