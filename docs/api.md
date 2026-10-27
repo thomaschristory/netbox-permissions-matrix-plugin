@@ -12,8 +12,13 @@ export TOKEN="nbt_xxxxxxxx.yyyyyyyy"
 curl -s -H "Authorization: Bearer $TOKEN" -H "Accept: application/json" "$NETBOX/api/plugins/permissions-matrix/matrix/?action=change"
 ```
 
-The [same permissions](permissions.md) as on the page apply. `plan/` and `apply/` also need a token with
-**Write enabled** set: a read-only token can read the matrix but not plan or apply changes.
+The [same permissions](permissions.md) as on the page apply. `plan/`, `apply/` and `import/` also need a token with
+**Write enabled** set, checked as by NetBox's own write endpoints: a read-only token can read the matrix but not plan,
+apply or import.
+
+`GET /api/plugins/permissions-matrix/` lists the endpoints, and the plugin appears under `/api/plugins/` like other
+plugins. Every endpoint is described in NetBox's OpenAPI schema (`/api/schema/`), with its parameters, request body
+and response, so it also shows in NetBox's Swagger UI at `/api/schema/swagger-ui/`.
 
 ## `GET matrix/`
 
