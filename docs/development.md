@@ -27,7 +27,7 @@ The plugin directory is mounted into the container:
 ## Tests
 
 ```bash
-make test          # tests/: pure pytest, no NetBox needed
+make test          # tests/: pure pytest, no NetBox needed (netbox.plugins is stubbed)
 make test-netbox   # tests_netbox/: Django tests inside the running stack
 make lint          # ruff check and ruff format --check
 make format        # fix what ruff can
