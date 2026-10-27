@@ -31,6 +31,11 @@ versioning: [SemVer](https://semver.org/).
 - The plugin config is defined at module level unconditionally, the standard way, instead of only when
   `netbox.plugins` imports. Importing the package now needs NetBox; the pure tests use a stub of `netbox.plugins`
   (`tests/conftest.py`), and the build reads the version from `version.py` as text.
+- Every NetBox internal the plugin relies on (the permission form's object types, registered model actions, the
+  constraint filter, `title`, the Admin menu and the login mixin) is read in one module, `compat.py`, which says why
+  each is needed and which NetBox versions it was checked on. New integration tests fail when NetBox removes one or
+  changes its shape, and check that the matrix rows are exactly the permission form's object types, with the same
+  labels. `title` and the four reserved actions are copied rather than imported.
 
 ## [0.4.1] - 2026-10-20
 

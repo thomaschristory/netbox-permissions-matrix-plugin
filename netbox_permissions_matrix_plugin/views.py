@@ -10,9 +10,10 @@ from django.utils.translation import gettext_lazy as _
 from django.views import View
 from netbox.views import generic
 from users.models import Group
-from utilities.views import ConditionalLoginRequiredMixin, ViewTab, register_model_view
+from utilities.views import ViewTab, register_model_view
 
 from . import service
+from .compat import login_required_mixin
 from .conf import get_setting
 from .core import yaml_io
 from .version import __version__
@@ -47,7 +48,7 @@ class _CheckViewMixin:
         return super().dispatch(request, *args, **kwargs)
 
 
-class MatrixAccessMixin(ConditionalLoginRequiredMixin, _CheckViewMixin):
+class MatrixAccessMixin(login_required_mixin(), _CheckViewMixin):
     """NetBox's login check first (anonymous users go to the login page when LOGIN_REQUIRED is set), then the
     plugin's access check."""
 
