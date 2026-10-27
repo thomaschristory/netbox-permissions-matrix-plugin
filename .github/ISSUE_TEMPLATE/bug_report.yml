@@ -64,7 +64,7 @@ body:
       label: Steps to reproduce
       description: Include the URL, the action tab, which cells you changed and the permissions involved (names, actions, object types, groups).
       placeholder: |
-        1. Open Admin > Permissions Matrix, tab Change
+        1. Open Plugins > Permissions Matrix, tab Change
         2. Untick Device for group NOC and click Review changes
         3. ...
     validations:

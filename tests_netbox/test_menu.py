@@ -1,6 +1,9 @@
 import copy
+import importlib
+from unittest import mock
 
-from django.test import SimpleTestCase
+from django.conf import settings
+from django.test import SimpleTestCase, override_settings
 from netbox.navigation.menu import ADMIN_MENU
 from netbox.registry import registry
 
@@ -33,12 +36,19 @@ class DefaultMenuTest(SimpleTestCase):
     def test_listed_once(self):
         self.assertEqual((admin_links(ADMIN_MENU) + plugin_links()).count(MATRIX), 1)
 
-    def test_plugins_placement_leaves_the_admin_menu_alone(self):
+
+class AdminSettingTest(SimpleTestCase):
+    # What NetBox loads at start: navigation.menu_items, computed from the setting when the module is imported.
+    def tearDown(self):
+        importlib.reload(navigation)
+
+    def test_admin_setting_moves_the_item_out_of_the_plugins_menu(self):
         menu = copy.deepcopy(ADMIN_MENU)
-        before = admin_links(menu)
-        (item,) = navigation.build_menu_items("plugins", menu)
-        self.assertEqual(item.link, MATRIX)
-        self.assertEqual(admin_links(menu), before)
+        config = {**settings.PLUGINS_CONFIG, "netbox_permissions_matrix_plugin": {"menu_placement": "admin"}}
+        with override_settings(PLUGINS_CONFIG=config), mock.patch("netbox.navigation.menu.ADMIN_MENU", menu):
+            importlib.reload(navigation)
+        self.assertEqual(navigation.menu_items, ())
+        self.assertEqual(admin_links(menu).count(MATRIX), 1)
 
 
 class AdminPlacementTest(SimpleTestCase):

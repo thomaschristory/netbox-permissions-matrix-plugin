@@ -13,7 +13,6 @@ versioning: [SemVer](https://semver.org/).
   when NetBox's Admin menu changes shape.
 - NetBox does not start when `menu_placement` is neither `"plugins"` nor `"admin"`; before, any other value meant
   the Plugins menu without a word.
-
 - The plugin requires NetBox 4.7.2 or later (`min_version`): 4.7.0 and 4.7.1 wrote plaintext API tokens from
   background bulk requests into job results. CI now tests 4.7.2 as well as the latest patch.
 - The plugin declares `max_version = "4.7.99"`, so NetBox 4.8 refuses to load it until a release tested on 4.8
