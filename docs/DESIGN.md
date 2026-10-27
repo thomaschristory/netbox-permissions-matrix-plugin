@@ -361,5 +361,7 @@ found, the plugin logs a warning and falls back to the entry under "Plugins".
 - `tests/`: pure pytest, no NetBox. The planner, export and import parsing, and the docs checks. The planner has
   exhaustive tests, including a property test that applies random change sets and checks that every untouched
   principal keeps exactly the access it had and every touched cell ends in the requested state.
+  The package's `__init__` defines the plugin config unconditionally, so `tests/conftest.py` puts a stub
+  `netbox.plugins` in place when NetBox is not installed.
 - `tests_netbox/`: Django tests run inside NetBox 4.7: views, API, permission enforcement, the menu insertion, the
   group tab, apply and conflict detection.

@@ -28,6 +28,9 @@ versioning: [SemVer](https://semver.org/).
   page are unchanged.
 - The plugin's pages use NetBox's `ConditionalLoginRequiredMixin` for the login check, and keep NetBox's own
   `head` and `javascript` template blocks.
+- The plugin config is defined at module level unconditionally, the standard way, instead of only when
+  `netbox.plugins` imports. Importing the package now needs NetBox; the pure tests use a stub of `netbox.plugins`
+  (`tests/conftest.py`), and the build reads the version from `version.py` as text.
 
 ## [0.4.1] - 2026-10-20
 
