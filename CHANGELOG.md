@@ -21,7 +21,8 @@ versioning: [SemVer](https://semver.org/).
 - NetBox does not start when `menu_placement` is neither `"plugins"` nor `"admin"`; before, any other value meant
   the Plugins menu without a word.
 - The plugin requires NetBox 4.7.2 or later (`min_version`): 4.7.0 and 4.7.1 wrote plaintext API tokens from
-  background bulk requests into job results. CI now tests 4.7.2 as well as the latest patch.
+  background bulk requests into job results. On an older NetBox, NetBox starts without the plugin and logs
+  `Unable to load plugin`. CI now tests 4.7.2 as well as the latest patch.
 - The plugin declares `max_version = "4.7.99"`, so NetBox 4.8 refuses to load it until a release tested on 4.8
   raises the limit, instead of failing at runtime.
 - The write-enabled check on API tokens uses NetBox's own `TokenWritePermission`; session requests from the matrix

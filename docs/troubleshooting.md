@@ -4,6 +4,9 @@
 
 - Check **Admin > System > Plugins** lists Permissions Matrix. If not, check `PLUGINS` in `configuration.py` and
   restart NetBox.
+- If `PLUGINS` is right, look for `Unable to load plugin netbox_permissions_matrix_plugin` in NetBox's start log:
+  NetBox skips a plugin that does not support its version. See the supported range in
+  [Installation](installation.md#requirements).
 - The item needs `users.view_objectpermission`. Superusers always see it.
 - By default the item is in the **Plugins** menu. Releases up to 0.4 put it below **Permissions** in
   **Admin > Authentication**, and `menu_placement: "admin"` still does.

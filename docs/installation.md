@@ -7,8 +7,9 @@
 | NetBox | 4.7.2 to 4.7.x |
 | Python | 3.12, 3.13 or 3.14 (whatever your NetBox runs on) |
 
-NetBox refuses to start with a plugin outside its supported range. When you upgrade NetBox to a new minor version,
-upgrade the plugin first to a release that supports it.
+Outside that range NetBox still starts, but without the plugin: it only logs a warning, `Unable to load plugin
+netbox_permissions_matrix_plugin: ...`. When you upgrade NetBox to a new minor version, upgrade the plugin first to a
+release that supports it.
 
 The plugin has no dependencies of its own beyond NetBox, and it adds no database tables, so there is nothing to
 migrate.

@@ -87,6 +87,8 @@ WRITE_ERRORS = {
     **ERRORS,
     403: OpenApiResponse(DetailSerializer, description="Not allowed, or the token is not write-enabled."),
 }
+# NetBox's schema class adds these to every GET, but only its viewsets honour them, not these APIViews.
+UNSUPPORTED = [OpenApiParameter(name, exclude=True) for name in ("fields", "omit", "brief")]
 
 
 class MatrixView(APIView):
@@ -101,6 +103,7 @@ class MatrixView(APIView):
             OpenApiParameter("group_id", int, many=True, description="Only these groups."),
             OpenApiParameter("user_id", int, many=True, description="These users (implies user columns)."),
             OpenApiParameter("app_label", str, many=True, description="Only rows of these apps."),
+            *UNSUPPORTED,
         ],
         responses={200: MatrixResponseSerializer, **ERRORS},
     )
@@ -126,6 +129,7 @@ class PrincipalView(APIView):
         parameters=[
             OpenApiParameter("type", str, required=True, enum=["group", "user"]),
             OpenApiParameter("id", int, required=True, description="The group's or user's ID."),
+            *UNSUPPORTED,
         ],
         responses={
             200: PrincipalResponseSerializer,
