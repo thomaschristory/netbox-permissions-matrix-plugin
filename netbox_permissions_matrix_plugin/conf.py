@@ -5,8 +5,9 @@ DEFAULTS = {
     # slug, {actions} the action letters (v, a, c, d, r for render_config, s for sync). A number is appended when the
     # name is taken.
     "new_permission_name": "{principal}_{actions}",
-    # "admin" puts the menu item below Permissions in Admin > Authentication; "plugins" uses the Plugins menu.
-    "menu_placement": "admin",
+    # "plugins" uses the Plugins menu. "admin" puts the menu item below Permissions in Admin > Authentication by
+    # editing NetBox's core menu (no plugin API for it), and falls back to the Plugins menu when it cannot.
+    "menu_placement": "plugins",
     # Whether the matrix page also offers one tab per action (View, Add, ...) next to the all-actions grid.
     "show_action_tabs": False,
     # Whether user columns are shown when the matrix opens.

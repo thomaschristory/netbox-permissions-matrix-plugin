@@ -7,7 +7,7 @@ The plugin works without any settings. To change the defaults, add a `netbox_per
 PLUGINS_CONFIG = {
     "netbox_permissions_matrix_plugin": {
         "new_permission_name": "{principal}_{actions}",
-        "menu_placement": "admin",
+        "menu_placement": "plugins",
         "show_action_tabs": False,
         "show_users_by_default": False,
         "hidden_apps": [],
@@ -20,10 +20,15 @@ PLUGINS_CONFIG = {
 | Setting | Default | Meaning |
 |---------|---------|---------|
 | `new_permission_name` | `"{principal}_{actions}"` | Name of the permissions the plugin creates for new grants. `{principal}` is the group name or username in lower case, with other characters turned into `_`; `{actions}` is the action letters, such as `vac` (see [Action letters](changes.md#action-letters)). `{action}` is accepted as another name for `{actions}`. A number is appended when the name is already taken. NetBox does not start when the pattern uses any other placeholder, or adds `.` or `[...]` to one; the error names it. |
-| `menu_placement` | `"admin"` | `"admin"` puts "Permissions Matrix" right below "Permissions" in Admin > Authentication. `"plugins"` puts it in the Plugins menu instead. |
+| `menu_placement` | `"plugins"` | `"plugins"` puts "Permissions Matrix" in the Plugins menu. `"admin"` puts it right below "Permissions" in Admin > Authentication instead; see the warning below. NetBox does not start with any other value. |
 | `show_action_tabs` | `False` | Whether the matrix page also has one tab per action (View, Add, Change, Delete, custom actions) next to All actions. Off, the page only shows the all-actions grid and ignores `?action=` in the URL. The group tab and the REST API are not affected. |
 | `show_users_by_default` | `False` | Whether the matrix opens with every user column shown. The **Users** picker on the page changes it per visit. |
 | `hidden_apps` | `[]` | App labels (for example `["wireless", "vpn"]`) whose object types get no row in the matrix. Grants on those types are still kept intact when the plugin rewrites a permission. |
 
 !!! note
     The menu placement is read once, when NetBox starts. Restart NetBox after changing it.
+
+!!! warning "`menu_placement: \"admin\"` relies on NetBox internals"
+    NetBox has no plugin API for its core menus, so the Admin placement edits NetBox's Admin menu directly. It is
+    tested on the NetBox versions the plugin supports, but a NetBox release can change that menu. When the plugin
+    cannot find **Permissions** there, it logs a warning at start and puts the item in the Plugins menu instead.

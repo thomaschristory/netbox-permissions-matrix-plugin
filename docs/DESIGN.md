@@ -45,8 +45,8 @@ These would make the plugin a failure even if it worked:
   plaintext API tokens into job results, and `max_version = "4.7.99"`, so a NetBox minor the plugin has not been tested
   on refuses to load it. CI tests `min_version`, the latest patch and NetBox's next release; `max_version` rises once
   that last job passes.
-- Only public NetBox and Django APIs, plus one documented exception: the menu item is inserted into NetBox's core
-  Admin menu (see [Navigation](#navigation)).
+- Only public NetBox and Django APIs, plus one documented, opt-in exception: with `menu_placement: "admin"` the menu
+  item is inserted into NetBox's core Admin menu (see [Navigation](#navigation)).
 
 ## Vocabulary
 
@@ -63,8 +63,8 @@ These would make the plugin a failure even if it worked:
 
 ## The matrix page
 
-URL `/plugins/permissions-matrix/`. Menu entry "Permissions Matrix" in Admin > Authentication, right below
-"Permissions".
+URL `/plugins/permissions-matrix/`. Menu entry "Permissions Matrix" in the Plugins menu, or in Admin >
+Authentication right below "Permissions" (see [Navigation](#navigation)).
 
 ### Layout
 
@@ -315,11 +315,12 @@ operation. It does not add a model to store history, because that would break th
 
 ## Navigation
 
-NetBox lets plugins add their own top-level menu or items under "Plugins", but not items inside core menus. To put
-"Permissions Matrix" right below "Permissions" in Admin > Authentication, the plugin's `ready()` inserts a
-`MenuItem` into that menu group before NetBox builds its menus. If NetBox's menu ever changes shape so that the
-group or the Permissions item cannot be found, the plugin logs a warning and falls back to an entry under
-"Plugins". The `menu_placement` setting can force the fallback.
+NetBox lets plugins add their own top-level menu or items under "Plugins", but not items inside core menus. By
+default the plugin uses that supported API: one item under "Plugins". With `menu_placement: "admin"`, it puts
+"Permissions Matrix" right below "Permissions" in Admin > Authentication instead, by inserting a `MenuItem` into that
+menu group when NetBox loads the plugin's navigation, before NetBox builds its menus. That relies on NetBox
+internals, so it is opt-in. If NetBox's menu ever changes shape so that the group or the Permissions item cannot be
+found, the plugin logs a warning and falls back to the entry under "Plugins".
 
 ## Implementation notes
 
@@ -334,7 +335,7 @@ group or the Permissions item cannot be found, the plugin logs a warning and fal
   other permissions created, renamed or deleted meanwhile do not.
 - Permission checks on created permissions run inside the transaction: the new rows are re-read through
   `.restrict(user, "add")` and the transaction is rolled back on a miss, as NetBox's own views do.
-- The menu insertion replaces the `items` tuple of the Authentication group in `ADMIN_MENU` and finds the
+- The opt-in menu insertion replaces the `items` tuple of the Authentication group in `ADMIN_MENU` and finds the
   Permissions item by its link (`users:objectpermission_list`).
 
 ## Settings
@@ -342,7 +343,7 @@ group or the Permissions item cannot be found, the plugin logs a warning and fal
 | Setting | Default | Meaning |
 |---------|---------|---------|
 | `new_permission_name` | `"{principal}_{actions}"` | Name template for simple permissions the plugin creates. `{principal}` is the group name or username as a lower-case slug, `{actions}` (or `{action}`) the action letters. Checked when NetBox starts: any other placeholder, or `.` or `[...]` on one, stops NetBox with an error naming it. |
-| `menu_placement` | `"admin"` | `"admin"` puts the item below Permissions; `"plugins"` uses the Plugins menu. |
+| `menu_placement` | `"plugins"` | `"plugins"` uses the Plugins menu; `"admin"` puts the item below Permissions (NetBox internals, opt-in). Any other value stops NetBox at start. |
 | `show_action_tabs` | `False` | Whether the page offers the single-action tabs next to All actions. |
 | `show_users_by_default` | `False` | Whether user columns are shown when the page opens. |
 | `hidden_apps` | `[]` | App labels whose object types are not shown as rows. |

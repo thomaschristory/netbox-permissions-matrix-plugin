@@ -5,7 +5,8 @@ are logged in as a superuser.
 
 ## 1. Open the matrix
 
-Go to **Admin > Authentication > Permissions Matrix**. The matrix shows every action at once: one row per object type, one
+Go to **Plugins > Permissions Matrix** (or **Admin > Authentication > Permissions Matrix** with
+[`menu_placement: "admin"`](configuration.md)). The matrix shows every action at once: one row per object type, one
 column per group, and in each cell a chip per action (V, A, C, D, and R or S where the model has them). A green chip
 is an action the group has on that object type.
 

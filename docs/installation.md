@@ -62,9 +62,9 @@ image runs `collectstatic` on start.
 
 ## Check that it works
 
-Log in as a user who can view permissions and open **Admin > Authentication > Permissions Matrix**, right below
-**Permissions**. If the item is missing, see [Configuration](configuration.md) for the `menu_placement` setting,
-and check **Admin > System > Plugins** that the plugin is listed.
+Log in as a user who can view permissions and open **Plugins > Permissions Matrix**. If the item is missing, see
+[Troubleshooting](troubleshooting.md#the-menu-item-is-missing), and check **Admin > System > Plugins** that the plugin
+is listed.
 
 ## Uninstalling
 

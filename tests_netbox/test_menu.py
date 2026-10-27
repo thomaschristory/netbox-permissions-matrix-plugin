@@ -1,3 +1,5 @@
+import copy
+
 from django.test import SimpleTestCase
 from netbox.navigation.menu import ADMIN_MENU
 from netbox.registry import registry
@@ -5,32 +7,61 @@ from netbox.registry import registry
 from netbox_permissions_matrix_plugin import navigation
 
 MATRIX = "plugins:netbox_permissions_matrix_plugin:matrix"
+PERMISSIONS = "users:objectpermission_list"
 
 
-class MenuTest(SimpleTestCase):
+def admin_links(menu):
+    return [item.link for group in menu.groups for item in group.items]
+
+
+def plugin_links():
+    return [item.link for items in registry["plugins"]["menu_items"].values() for item in items]
+
+
+class BrokenMenu:
+    class Group:
+        items = ()
+
+    groups = (Group(),)
+
+
+class DefaultMenuTest(SimpleTestCase):
+    def test_matrix_is_in_the_plugins_menu(self):
+        self.assertIn(MATRIX, plugin_links())
+        self.assertNotIn(MATRIX, admin_links(ADMIN_MENU))
+
+    def test_listed_once(self):
+        self.assertEqual((admin_links(ADMIN_MENU) + plugin_links()).count(MATRIX), 1)
+
+    def test_plugins_placement_leaves_the_admin_menu_alone(self):
+        menu = copy.deepcopy(ADMIN_MENU)
+        before = admin_links(menu)
+        (item,) = navigation.build_menu_items("plugins", menu)
+        self.assertEqual(item.link, MATRIX)
+        self.assertEqual(admin_links(menu), before)
+
+
+class AdminPlacementTest(SimpleTestCase):
+    # Runs on a copy of NetBox's real Admin menu, so it also fails when that menu changes shape.
+    def setUp(self):
+        self.menu = copy.deepcopy(ADMIN_MENU)
+
     def test_matrix_follows_permissions_in_admin_authentication(self):
-        group = next(g for g in ADMIN_MENU.groups if any(i.link == "users:objectpermission_list" for i in g.items))
+        self.assertEqual(navigation.build_menu_items("admin", self.menu), ())
+        group = next(g for g in self.menu.groups if any(i.link == PERMISSIONS for i in g.items))
         links = [item.link for item in group.items]
-        at = links.index("users:objectpermission_list")
-        self.assertEqual(links[at + 1], MATRIX)
-        item = group.items[at + 1]
+        item = group.items[links.index(PERMISSIONS) + 1]
+        self.assertEqual(item.link, MATRIX)
         self.assertEqual(item.link_text, "Permissions Matrix")
         self.assertEqual(list(item.permissions), ["users.view_objectpermission"])
 
-    def test_listed_once(self):
-        admin_links = [item.link for group in ADMIN_MENU.groups for item in group.items]
-        plugin_links = [item.link for items in registry["plugins"]["menu_items"].values() for item in items]
-        self.assertEqual((admin_links + plugin_links).count(MATRIX), 1)
+    def test_insertion_is_idempotent(self):
+        self.assertTrue(navigation.add_to_admin_menu(self.menu))
+        self.assertTrue(navigation.add_to_admin_menu(self.menu))
+        self.assertEqual(admin_links(self.menu).count(MATRIX), 1)
 
-    def test_insertion_is_idempotent_and_reports_a_missing_anchor(self):
-        self.assertTrue(navigation.add_to_admin_menu())
-        admin_links = [item.link for group in ADMIN_MENU.groups for item in group.items]
-        self.assertEqual(admin_links.count(MATRIX), 1)
-
-        class Group:
-            items = ()
-
-        class Menu:
-            groups = (Group(),)
-
-        self.assertFalse(navigation.add_to_admin_menu(Menu()))
+    def test_missing_anchor_falls_back_to_the_plugins_menu_with_a_warning(self):
+        with self.assertLogs("netbox_permissions_matrix_plugin", "WARNING") as logs:
+            (item,) = navigation.build_menu_items("admin", BrokenMenu())
+        self.assertEqual(item.link, MATRIX)
+        self.assertIn("Could not find Permissions in the Admin menu", logs.output[0])

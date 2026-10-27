@@ -35,12 +35,17 @@ if PluginConfig is not None:
             # from starting instead, with the reason.
             from django.core.exceptions import ImproperlyConfigured
 
-            from .conf import get_setting
+            from .conf import MENU_PLACEMENTS, get_setting
             from .core.planner import check_name_template
 
             try:
                 check_name_template(get_setting("new_permission_name"))
             except ValueError as e:
                 raise ImproperlyConfigured(str(e)) from None
+            # Any other value would silently mean the Plugins menu.
+            placement = get_setting("menu_placement")
+            if placement not in MENU_PLACEMENTS:
+                choices = ", ".join(f'"{p}"' for p in MENU_PLACEMENTS)
+                raise ImproperlyConfigured(f"menu_placement must be one of {choices}, not {placement!r}.")
 
     config = PermissionsMatrixConfig

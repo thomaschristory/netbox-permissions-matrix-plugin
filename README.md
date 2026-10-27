@@ -44,8 +44,8 @@ pip install netbox-permissions-matrix-plugin
 PLUGINS = ["netbox_permissions_matrix_plugin"]
 ```
 
-Run `python manage.py collectstatic --no-input`, restart NetBox and open **Admin > Authentication > Permissions
-Matrix**.
+Run `python manage.py collectstatic --no-input`, restart NetBox and open **Plugins > Permissions Matrix**
+(or set `menu_placement: "admin"` to have it below **Admin > Authentication > Permissions**).
 
 ## Documentation
 
