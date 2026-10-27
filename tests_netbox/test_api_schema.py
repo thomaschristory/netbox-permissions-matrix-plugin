@@ -49,6 +49,20 @@ class SchemaTest(TestCase):
                     body = op["requestBody"]["content"]["application/json"]["schema"]["$ref"]
                     self.assertIn("/PermissionsMatrix", body)
 
+    def test_get_parameters_are_the_ones_the_views_read(self):
+        # NetBox's schema class adds fields/omit/brief to every GET; these APIViews do not honour them.
+        patterns = [path("api/plugins/permissions-matrix/", include("netbox_permissions_matrix_plugin.api.urls"))]
+        schema = SchemaGenerator(patterns=patterns).get_schema(request=None, public=True)
+        expected = {
+            "matrix": {"action", "include_users", "group_id", "user_id", "app_label"},
+            "principal": {"type", "id"},
+        }
+        for p, ops in schema["paths"].items():
+            name = p.rstrip("/").rsplit("/", 1)[-1]
+            if name in expected:
+                with self.subTest(name=name):
+                    self.assertEqual({param["name"] for param in ops["get"]["parameters"]}, expected[name])
+
     def test_netbox_schema_validates(self):
         # NetBox's whole schema with the plugin loaded, as `manage.py spectacular` builds it. NetBox's viewsets query
         # the database while the schema is generated, hence a test (migrated database) rather than a bare CI command.
