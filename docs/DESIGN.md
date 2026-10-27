@@ -290,8 +290,9 @@ The root lists the endpoints (NetBox finds it as `api-root`, for `/api/plugins/`
 not viewsets, because none of them maps to a model: there is no queryset for `NetBoxRouter` to route. Each carries
 `@extend_schema` with its parameters and request and response serializers, so NetBox's OpenAPI schema validates with
 them. The response serializers only document the payloads, which `matrix.py` and `service.py` build; a test checks
-every key of real responses against them. Unsafe methods with a token go through NetBox's `TokenWritePermission`;
-session requests (the page, with CSRF) are let through to the views' own permission checks.
+real responses against them: no undocumented or missing keys, no unexpected nulls, and the shape of cell entries.
+Unsafe methods with a token go through NetBox's `TokenWritePermission`; session requests (the page, with CSRF) are let
+through to the views' own permission checks.
 
 A change set is a list of cell changes:
 

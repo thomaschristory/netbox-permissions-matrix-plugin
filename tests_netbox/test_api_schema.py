@@ -62,15 +62,30 @@ def documented(test, serializer, data, where="body"):
             test.assertFalse(field.required, f"{where}.{name} is missing")
             continue
         value, at = data[name], f"{where}.{name}"
-        if isinstance(field, serializers.ListSerializer):
+        if value is None:
+            test.assertTrue(field.allow_null, f"{at} is null")
+        elif isinstance(field, serializers.ListSerializer):
             for i, item in enumerate(value):
                 documented(test, field.child, item, f"{at}[{i}]")
         elif isinstance(field, serializers.Serializer):
-            if value is not None:
-                documented(test, field, value, at)
+            documented(test, field, value, at)
         elif isinstance(field, serializers.DictField) and isinstance(field.child, serializers.Serializer):
             for key, item in value.items():
                 documented(test, field.child, item, f"{at}[{key}]")
+
+
+def cells_documented(test, cells, depth):
+    """Cells are free-form in the schema (their nesting depends on the endpoint); check the entries at the bottom."""
+    if depth:
+        for inner in cells.values():
+            cells_documented(test, inner, depth - 1)
+        return
+    test.assertLessEqual(set(cells), {"state", "perms", "inherited"})
+    test.assertIn(cells["state"], ("granted", "constrained", "disabled", "none"))
+    for perm in cells["perms"]:
+        documented(test, api.PermissionSummarySerializer(), perm, "cell.perms")
+    if "inherited" in cells:
+        test.assertEqual(set(cells["inherited"]), {"state", "groups"})
 
 
 class ResponsesMatchSchemaTest(TestCase):
@@ -97,16 +112,21 @@ class ResponsesMatchSchemaTest(TestCase):
         return response.json()
 
     def test_matrix(self):
-        for action in ("change", "*"):
+        for action, depth in (("change", 2), ("*", 3)):
             with self.subTest(action=action):
                 data = self.get("matrix", action=action, include_users="true")
                 documented(self, api.MatrixResponseSerializer(), data)
+                cells_documented(self, data["cells"], depth)
                 self.assertTrue(data["columns"] and data["rows"])
+                # alice's column shows what she has through NOC.
+                self.assertIn("inherited", json.dumps(data["cells"][f"user:{self.alice.pk}"]))
 
     def test_principal(self):
         for kind, pk in (("group", self.noc.pk), ("user", self.alice.pk)):
             with self.subTest(kind=kind):
-                documented(self, api.PrincipalResponseSerializer(), self.get("principal", type=kind, id=pk))
+                data = self.get("principal", type=kind, id=pk)
+                documented(self, api.PrincipalResponseSerializer(), data)
+                cells_documented(self, data["cells"], 2)
 
     def test_plan_and_apply(self):
         plan = self.post("plan", self.body)
