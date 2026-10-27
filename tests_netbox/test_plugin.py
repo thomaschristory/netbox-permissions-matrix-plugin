@@ -17,8 +17,10 @@ class PluginLoadTest(SimpleTestCase):
     def test_plugin_is_installed(self):
         config = apps.get_app_config("netbox_permissions_matrix_plugin")
         self.assertEqual(config.verbose_name, "Permissions Matrix")
-        self.assertEqual(config.min_version, "4.7.0")
-        self.assertIsNone(config.max_version)
+        self.assertEqual(config.min_version, "4.7.2")
+        # The top patch of a minor. CI's feature job lifts it to None to test NetBox's next minor.
+        if config.max_version is not None:
+            self.assertRegex(config.max_version, r"^4\.\d+\.99$")
 
 
 class SettingsCheckTest(SimpleTestCase):

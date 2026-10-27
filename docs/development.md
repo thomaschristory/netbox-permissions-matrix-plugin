@@ -40,8 +40,9 @@ make format        # fix what ruff can
 - `tests_netbox/` covers the loader, the REST API, the views, the menu and export and import against a real NetBox
   and PostgreSQL.
 
-CI runs both on every pull request, the integration tests against a pinned NetBox 4.7 release and against NetBox's
-`feature` branch (allowed to fail, as an early warning).
+CI runs both on every pull request, the integration tests against the lowest supported NetBox (`min_version`), the
+latest 4.7 patch and NetBox's `feature` branch (allowed to fail, as an early warning, and run with `max_version`
+lifted).
 
 ## Layout
 
@@ -77,7 +78,9 @@ make dist   # build the sdist and wheel, then check them with twine and dev/scri
 Releases follow [Keep a Changelog](changelog.md) and Conventional Commits:
 
 1. Bump `netbox_permissions_matrix_plugin/version.py` and move the changelog's Unreleased section under the new
-   version and date.
+   version and date. If `min_version` or `max_version` changed, update the compatibility tables in `README.md` and
+   `docs/index.md`. Raise `max_version` to the next minor (for example `4.8.99`) only once the `feature` integration
+   job passes on it.
 2. Merge, then tag `vX.Y.Z` on main and push the tag.
 3. The `release` workflow builds and publishes to PyPI with trusted publishing; the `docs` workflow publishes this
    site.

@@ -16,9 +16,12 @@ if PluginConfig is not None:
         author = "Thomas Christory"
         author_email = "9317624+thomaschristory@users.noreply.github.com"
         base_url = "permissions-matrix"
-        min_version = "4.7.0"
-        # No max_version: the plugin only uses the stable permission model, and CI also runs against NetBox's next
-        # release.
+        # 4.7.0 and 4.7.1 wrote plaintext API tokens from background bulk requests into job results; the REST API is
+        # driven by tokens. CI tests min_version and the latest patch.
+        min_version = "4.7.2"
+        # The last minor CI has passed on. Raise it once the integration tests pass on NetBox's next minor (the
+        # "feature" job), so an upgraded NetBox refuses to load an untested plugin instead of failing at runtime.
+        max_version = "4.7.99"
         required_settings = []
         default_settings = DEFAULTS
 

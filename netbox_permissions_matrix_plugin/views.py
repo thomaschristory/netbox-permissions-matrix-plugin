@@ -3,8 +3,6 @@ import functools
 import hashlib
 from pathlib import Path
 
-from django.conf import settings
-from django.contrib.auth.mixins import AccessMixin
 from django.http import HttpResponse
 from django.shortcuts import render
 from django.urls import reverse
@@ -12,7 +10,7 @@ from django.utils.translation import gettext_lazy as _
 from django.views import View
 from netbox.views import generic
 from users.models import Group
-from utilities.views import ViewTab, register_model_view
+from utilities.views import ConditionalLoginRequiredMixin, ViewTab, register_model_view
 
 from . import service
 from .conf import get_setting
@@ -41,14 +39,17 @@ def asset_version() -> str:
         return __version__
 
 
-class MatrixAccessMixin(AccessMixin):
+class _CheckViewMixin:
     def dispatch(self, request, *args, **kwargs):
-        # Anonymous users go to the login page; authenticated users without access get NetBox's 403 page with the
-        # reason (service.check_view raises PermissionDenied with a message).
-        if not request.user.is_authenticated and settings.LOGIN_REQUIRED:
-            return self.handle_no_permission()
+        # Users without access get NetBox's 403 page with the reason (service.check_view raises PermissionDenied with
+        # a message).
         service.check_view(request.user)
         return super().dispatch(request, *args, **kwargs)
+
+
+class MatrixAccessMixin(ConditionalLoginRequiredMixin, _CheckViewMixin):
+    """NetBox's login check first (anonymous users go to the login page when LOGIN_REQUIRED is set), then the
+    plugin's access check."""
 
 
 def api_urls() -> dict:
