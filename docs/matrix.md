@@ -1,6 +1,7 @@
 # The matrix
 
-Open **Admin > Authentication > Permissions Matrix**.
+Open **Plugins > Permissions Matrix** (or **Admin > Authentication > Permissions Matrix** with
+[`menu_placement: "admin"`](configuration.md)).
 
 ![The matrix with every action, only rows with grants](img/matrix.png)
 

@@ -39,8 +39,15 @@ def add_to_admin_menu(menu=None) -> bool:
     return False
 
 
-_in_admin = get_setting("menu_placement") == "admin" and add_to_admin_menu()
-if get_setting("menu_placement") == "admin" and not _in_admin:
-    logger.warning("Could not find Permissions in the Admin menu; Permissions Matrix is in the Plugins menu instead.")
+def build_menu_items(placement, menu=None) -> tuple:
+    """The plugin's Plugins-menu items: none when the item went into the Admin menu instead."""
+    if placement == "admin":
+        if add_to_admin_menu(menu):
+            return ()
+        logger.warning(
+            "Could not find Permissions in the Admin menu; Permissions Matrix is in the Plugins menu instead."
+        )
+    return (PluginMenuItem(link=LINK, link_text=LABEL, permissions=PERMISSIONS),)
 
-menu_items = () if _in_admin else (PluginMenuItem(link=LINK, link_text=LABEL, permissions=PERMISSIONS),)
+
+menu_items = build_menu_items(get_setting("menu_placement"))

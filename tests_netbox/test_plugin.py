@@ -42,6 +42,19 @@ class SettingsCheckTest(SimpleTestCase):
         with override_settings(PLUGINS_CONFIG=plugin_settings(new_permission_name="{actions} for {principal}")):
             self.check()
 
+    def test_admin_menu_placement_passes(self):
+        with override_settings(PLUGINS_CONFIG=plugin_settings(menu_placement="admin")):
+            self.check()
+
+    def test_unknown_menu_placement_stops_startup(self):
+        with (
+            override_settings(PLUGINS_CONFIG=plugin_settings(menu_placement="Admin")),
+            self.assertRaisesMessage(
+                ImproperlyConfigured, 'menu_placement must be one of "admin", "plugins", not \'Admin\'.'
+            ),
+        ):
+            self.check()
+
     def test_ready_checks_settings(self):
         # NetBox's own ready() registers menus and URLs; it is skipped so only the plugin's check runs again.
         bad = plugin_settings(new_permission_name="{principal}_{team}")

@@ -5,9 +5,10 @@
 - Check **Admin > System > Plugins** lists Permissions Matrix. If not, check `PLUGINS` in `configuration.py` and
   restart NetBox.
 - The item needs `users.view_objectpermission`. Superusers always see it.
-- The plugin puts the item below **Permissions** in **Admin > Authentication**. If a future NetBox changes that
-  menu so the item cannot be placed, the plugin logs a warning at start and puts it in the **Plugins** menu instead.
-  `menu_placement: "plugins"` does that on purpose; see [Configuration](configuration.md).
+- By default the item is in the **Plugins** menu. Releases up to 0.4 put it below **Permissions** in
+  **Admin > Authentication**, and `menu_placement: "admin"` still does.
+- With `menu_placement: "admin"`, if NetBox changes its Admin menu so the item cannot be placed, the plugin logs a
+  warning at start and puts it in the **Plugins** menu instead. See [Configuration](configuration.md).
 
 ## The page is unstyled or does not react
 
