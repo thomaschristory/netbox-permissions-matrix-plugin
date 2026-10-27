@@ -5,6 +5,8 @@ versioning: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-27
+
 ### Added
 
 - The REST API has a root, `/api/plugins/permissions-matrix/`, listing its endpoints, and the plugin is listed under
@@ -139,7 +141,8 @@ versioning: [SemVer](https://semver.org/).
   group tab, export and import, permissions, REST API, limitations, troubleshooting and development.
 - Project scaffold: plugin configuration, settings, CI, release and documentation workflows, development stack.
 
-[Unreleased]: https://github.com/thomaschristory/netbox-permissions-matrix-plugin/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/thomaschristory/netbox-permissions-matrix-plugin/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/thomaschristory/netbox-permissions-matrix-plugin/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/thomaschristory/netbox-permissions-matrix-plugin/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/thomaschristory/netbox-permissions-matrix-plugin/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/thomaschristory/netbox-permissions-matrix-plugin/compare/v0.2.0...v0.3.0
