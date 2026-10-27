@@ -39,6 +39,7 @@ is written.
 
 | Plugin | NetBox | Python |
 |--------|--------|--------|
+| 0.5 | 4.7.2 to 4.7.x | 3.12 to 3.14 |
 | 0.4 | 4.7.0 and later | 3.12 to 3.14 |
 | 0.3 | 4.7.0 and later | 3.12 to 3.14 |
 | 0.2 | 4.7.0 and later | 3.12 to 3.14 |
