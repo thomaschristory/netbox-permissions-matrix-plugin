@@ -42,7 +42,10 @@ make format        # fix what ruff can
 
 CI runs both on every pull request, the integration tests against the lowest supported NetBox (`min_version`), the
 latest 4.7 patch and NetBox's `feature` branch (allowed to fail, as an early warning, and run with `max_version`
-lifted).
+lifted). The integration tests include NetBox's OpenAPI schema check, in `test_api_schema.py` since it needs a
+migrated database (`manage.py spectacular --validate --fail-on-warn`), so every endpoint stays documented. On each
+NetBox, CI also runs the menu tests a second time in a NetBox started with `menu_placement: "admin"`, so a change
+in NetBox's Admin menu fails CI instead of silently moving the item to the Plugins menu.
 
 ## Layout
 
