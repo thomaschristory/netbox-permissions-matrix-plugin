@@ -5,6 +5,13 @@ versioning: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- The REST API has a root, `/api/plugins/permissions-matrix/`, listing its endpoints, and the plugin is listed under
+  `/api/plugins/`.
+- Every API endpoint is described in NetBox's OpenAPI schema (`/api/schema/`, Swagger UI): parameters, request
+  bodies and responses. Before, the schema left them out.
+
 ### Changed
 
 - **The menu item moves to the Plugins menu by default** (`menu_placement` now defaults to `"plugins"`). Putting it
@@ -17,6 +24,8 @@ versioning: [SemVer](https://semver.org/).
   background bulk requests into job results. CI now tests 4.7.2 as well as the latest patch.
 - The plugin declares `max_version = "4.7.99"`, so NetBox 4.8 refuses to load it until a release tested on 4.8
   raises the limit, instead of failing at runtime.
+- The write-enabled check on API tokens uses NetBox's own `TokenWritePermission`; session requests from the matrix
+  page are unchanged.
 - The plugin's pages use NetBox's `ConditionalLoginRequiredMixin` for the login check, and keep NetBox's own
   `head` and `javascript` template blocks.
 

@@ -1,6 +1,9 @@
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, transaction
 from django.http import Http404
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
+from netbox.api.authentication import TokenWritePermission
 from rest_framework import status
 from rest_framework.exceptions import NotFound
 from rest_framework.exceptions import PermissionDenied as APIPermissionDenied
@@ -8,26 +11,38 @@ from rest_framework.exceptions import ValidationError as APIValidationError
 from rest_framework.permissions import SAFE_METHODS, BasePermission, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from users.models import Token
 
 from .. import loader, service
 from ..applier import apply_plan
 from ..conf import get_setting
 from ..core import yaml_io
 from ..core.model import PrincipalRef
-from .serializers import ChangeSetSerializer, ImportSerializer
+from .serializers import (
+    ApplyResponseSerializer,
+    ChangeSetSerializer,
+    DetailSerializer,
+    ImportResponseSerializer,
+    ImportSerializer,
+    MatrixResponseSerializer,
+    PlanResponseSerializer,
+    PrincipalResponseSerializer,
+)
 
 
 class WriteEnabled(BasePermission):
-    """Refuse API tokens without write enabled on unsafe methods, as NetBox's own write endpoints do.
+    """NetBox's TokenWritePermission for token requests: unsafe methods need a write-enabled token.
 
-    NetBox's TokenWritePermission also refuses session authentication, which the matrix page uses (with CSRF).
+    TokenWritePermission refuses session authentication outright, and the matrix page uses sessions (with CSRF), so
+    those are let through here; the views still check the user's permissions.
     """
 
     message = "This API token is not write-enabled."
 
     def has_permission(self, request, view):
-        token = request.auth
-        return request.method in SAFE_METHODS or token is None or bool(getattr(token, "write_enabled", False))
+        if isinstance(request.auth, Token):
+            return TokenWritePermission().has_permission(request, view)
+        return request.method in SAFE_METHODS or request.auth is None
 
 
 def _ints(values):
@@ -64,11 +79,31 @@ def _guard(func):
     return wrapper
 
 
+ERRORS = {
+    400: OpenApiResponse(OpenApiTypes.OBJECT, description="Invalid request."),
+    403: OpenApiResponse(DetailSerializer, description="Not allowed."),
+}
+WRITE_ERRORS = {
+    **ERRORS,
+    403: OpenApiResponse(DetailSerializer, description="Not allowed, or the token is not write-enabled."),
+}
+
+
 class MatrixView(APIView):
     """The matrix for one action: rows, columns, cell states and the permissions behind each cell."""
 
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter("action", str, description="An action name, or * for every action. Default: view."),
+            OpenApiParameter("include_users", bool, description="Add a column per user with direct permissions."),
+            OpenApiParameter("group_id", int, many=True, description="Only these groups."),
+            OpenApiParameter("user_id", int, many=True, description="These users (implies user columns)."),
+            OpenApiParameter("app_label", str, many=True, description="Only rows of these apps."),
+        ],
+        responses={200: MatrixResponseSerializer, **ERRORS},
+    )
     @_guard
     def get(self, request):
         params = request.query_params
@@ -87,6 +122,17 @@ class PrincipalView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter("type", str, required=True, enum=["group", "user"]),
+            OpenApiParameter("id", int, required=True, description="The group's or user's ID."),
+        ],
+        responses={
+            200: PrincipalResponseSerializer,
+            404: OpenApiResponse(DetailSerializer, description="Unknown, or not visible to you."),
+            **ERRORS,
+        },
+    )
     @_guard
     def get(self, request):
         kind = request.query_params.get("type")
@@ -104,6 +150,10 @@ class PlanView(APIView):
 
     permission_classes = [IsAuthenticated, WriteEnabled]
 
+    @extend_schema(
+        request=ChangeSetSerializer,
+        responses={200: PlanResponseSerializer, **WRITE_ERRORS},
+    )
     @_guard
     def post(self, request):
         service.check_edit(request.user)
@@ -121,6 +171,14 @@ class ApplyView(APIView):
 
     permission_classes = [IsAuthenticated, WriteEnabled]
 
+    @extend_schema(
+        request=ChangeSetSerializer,
+        responses={
+            200: ApplyResponseSerializer,
+            409: OpenApiResponse(DetailSerializer, description="The permissions changed since the plan. Plan again."),
+            **WRITE_ERRORS,
+        },
+    )
     @_guard
     def post(self, request):
         service.check_edit(request.user)
@@ -148,6 +206,10 @@ class ImportView(APIView):
 
     permission_classes = [IsAuthenticated, WriteEnabled]
 
+    @extend_schema(
+        request=ImportSerializer,
+        responses={200: ImportResponseSerializer, **WRITE_ERRORS},
+    )
     @_guard
     def post(self, request):
         service.check_edit(request.user)

@@ -286,6 +286,13 @@ Under `/api/plugins/permissions-matrix/`, authenticated with normal NetBox API t
 | `apply/` | POST | Takes a change set and the version token, applies it in one transaction, returns what was written. |
 | `import/` | POST | Takes a YAML export, returns the cell changes it implies, with warnings and errors, for the normal review. |
 
+The root lists the endpoints (NetBox finds it as `api-root`, for `/api/plugins/`). The endpoints are plain `APIView`s,
+not viewsets, because none of them maps to a model: there is no queryset for `NetBoxRouter` to route. Each carries
+`@extend_schema` with its parameters and request and response serializers, so NetBox's OpenAPI schema validates with
+them. The response serializers only document the payloads, which `matrix.py` and `service.py` build; a test checks
+every key of real responses against them. Unsafe methods with a token go through NetBox's `TokenWritePermission`;
+session requests (the page, with CSRF) are let through to the views' own permission checks.
+
 A change set is a list of cell changes:
 
 ```json
