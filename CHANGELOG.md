@@ -36,6 +36,9 @@ versioning: [SemVer](https://semver.org/).
   each is needed and which NetBox versions it was checked on. New integration tests fail when NetBox removes one or
   changes its shape, and check that the matrix rows are exactly the permission form's object types, with the same
   labels. `title` and the four reserved actions are copied rather than imported.
+- An integration test validates NetBox's OpenAPI schema with the plugin loaded (`spectacular --validate --fail-on-warn`),
+  and CI runs the menu tests in a NetBox started with `menu_placement: "admin"`, on the lowest supported NetBox, the
+  latest patch and NetBox's next release.
 
 ## [0.4.1] - 2026-10-20
 

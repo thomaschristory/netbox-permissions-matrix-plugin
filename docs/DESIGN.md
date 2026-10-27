@@ -44,7 +44,7 @@ These would make the plugin a failure even if it worked:
 - NetBox 4.7.2 to 4.7.x (Django 6.1, Python 3.12 to 3.14). `min_version = "4.7.2"`, since 4.7.0 and 4.7.1 wrote
   plaintext API tokens into job results, and `max_version = "4.7.99"`, so a NetBox minor the plugin has not been tested
   on refuses to load it. CI tests `min_version`, the latest patch and NetBox's next release; `max_version` rises once
-  that last job passes.
+  that last job passes. On each, CI also validates the OpenAPI schema and checks the `menu_placement: "admin"` menu.
 - Only public NetBox and Django APIs, plus one documented, opt-in exception: with `menu_placement: "admin"` the menu
   item is inserted into NetBox's core Admin menu (see [Navigation](#navigation)).
 
@@ -289,7 +289,8 @@ Under `/api/plugins/permissions-matrix/`, authenticated with normal NetBox API t
 The root lists the endpoints (NetBox finds it as `api-root`, for `/api/plugins/`). The endpoints are plain `APIView`s,
 not viewsets, because none of them maps to a model: there is no queryset for `NetBoxRouter` to route. Each carries
 `@extend_schema` with its parameters and request and response serializers, so NetBox's OpenAPI schema validates with
-them. The response serializers only document the payloads, which `matrix.py` and `service.py` build; a test checks
+them; a test runs `manage.py spectacular --validate --fail-on-warn` on the test database (NetBox's viewsets query it
+while the schema is built). The response serializers only document the payloads, which `matrix.py` and `service.py` build; a test checks
 real responses against them: no undocumented or missing keys, no unexpected nulls, and the shape of cell entries.
 Unsafe methods with a token go through NetBox's `TokenWritePermission`; session requests (the page, with CSRF) are let
 through to the views' own permission checks.

@@ -1,6 +1,8 @@
 import json
+import os
 
 import yaml
+from django.core.management import call_command
 from django.urls import include, path, reverse
 from drf_spectacular.generators import SchemaGenerator
 from rest_framework import serializers
@@ -46,6 +48,11 @@ class SchemaTest(TestCase):
                 if method == "post":
                     body = op["requestBody"]["content"]["application/json"]["schema"]["$ref"]
                     self.assertIn("/PermissionsMatrix", body)
+
+    def test_netbox_schema_validates(self):
+        # NetBox's whole schema with the plugin loaded, as `manage.py spectacular` builds it. NetBox's viewsets query
+        # the database while the schema is generated, hence a test (migrated database) rather than a bare CI command.
+        call_command("spectacular", "--validate", "--fail-on-warn", "--file", os.devnull)
 
 
 def change(group, object_type, action, granted):

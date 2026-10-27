@@ -4,10 +4,11 @@ from unittest import mock
 
 from django.conf import settings
 from django.test import SimpleTestCase, override_settings
-from netbox.navigation.menu import ADMIN_MENU
+from netbox.navigation.menu import ADMIN_MENU, get_menus
 from netbox.registry import registry
 
 from netbox_permissions_matrix_plugin import navigation
+from netbox_permissions_matrix_plugin.conf import get_setting
 
 MATRIX = "plugins:netbox_permissions_matrix_plugin:matrix"
 PERMISSIONS = "users:objectpermission_list"
@@ -28,13 +29,31 @@ class BrokenMenu:
     groups = (Group(),)
 
 
-class DefaultMenuTest(SimpleTestCase):
-    def test_matrix_is_in_the_plugins_menu(self):
-        self.assertIn(MATRIX, plugin_links())
-        self.assertNotIn(MATRIX, admin_links(ADMIN_MENU))
+class LoadedMenuTest(SimpleTestCase):
+    # The menus NetBox built at start from PLUGINS_CONFIG, as the navigation bar renders them (get_menus). CI runs this
+    # module a second time with menu_placement: "admin", so a change in NetBox's Admin menu fails there instead of
+    # silently moving the item to the Plugins menu.
+    def setUp(self):
+        self.menus = {str(menu.label): menu for menu in get_menus()}
+
+    def links(self, label):
+        menu = self.menus.get(label)
+        return admin_links(menu) if menu else []
+
+    def test_matrix_is_where_menu_placement_puts_it(self):
+        if get_setting("menu_placement") == "admin":
+            links = admin_links(self.menus["Admin"])
+            at = links.index(PERMISSIONS) + 1
+            self.assertEqual(links[at : at + 1], [MATRIX], "not right after Permissions in the Admin menu")
+            self.assertNotIn(MATRIX, self.links("Plugins"))
+            self.assertNotIn(MATRIX, plugin_links())
+        else:
+            self.assertIn(MATRIX, self.links("Plugins"))
+            self.assertIn(MATRIX, plugin_links())
+            self.assertNotIn(MATRIX, self.links("Admin"))
 
     def test_listed_once(self):
-        self.assertEqual((admin_links(ADMIN_MENU) + plugin_links()).count(MATRIX), 1)
+        self.assertEqual(sum(self.links(label).count(MATRIX) for label in self.menus), 1)
 
 
 class AdminSettingTest(SimpleTestCase):

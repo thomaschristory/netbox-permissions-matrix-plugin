@@ -137,4 +137,14 @@ jobs:
         # The plugin has no models; this fails if one is ever added without a migration.
         run: python netbox/netbox/manage.py makemigrations netbox_permissions_matrix_plugin --check --dry-run
       - name: Integration tests
+        # Includes NetBox's OpenAPI schema check (test_api_schema), which needs the migrated test database.
         run: python netbox/netbox/manage.py test --noinput --parallel 1 "$GITHUB_WORKSPACE/plugin/tests_netbox"
+      - name: Menu tests with menu_placement "admin"
+        # NetBox builds its menus once, at start, from PLUGINS_CONFIG: run the menu tests again in a NetBox started
+        # with the Admin-menu placement, so a change in NetBox's Admin menu fails here instead of silently moving the
+        # item to the Plugins menu.
+        run: |
+          cat >> netbox/netbox/netbox/configuration.py <<'EOF'
+          PLUGINS_CONFIG = {"netbox_permissions_matrix_plugin": {"menu_placement": "admin"}}
+          EOF
+          python netbox/netbox/manage.py test --noinput --parallel 1 -p test_menu.py "$GITHUB_WORKSPACE/plugin/tests_netbox"
